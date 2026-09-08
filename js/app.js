@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.7.1 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v9.7.2 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -4032,14 +4032,37 @@ function paperToSheetRows(paper) {
   ];
 }
 
+// v9.7.2：Excel Sheet 名清洗——Excel 限制 Sheet 名不得含半角 : \ / ? * [ ] 且不超过 31 字符。
+// 1 楼存在多材质合并简称（如「600白纹/600黑卡/600牛皮/800纹棉」，含 / 且部分超 31 字符），
+// 直接使用会导致 SheetJS 抛错、整表导出失败（v9.0 重构引入，与 900 铜版纸数据修正无关）。
+// 导入侧按 Sheet 内容元信息（报价表全称/简称）匹配，不依赖 Sheet 名，故清洗不影响回导。
+const SHEET_NAME_SANITIZE_MAP = { ":": "：", "\\": "＼", "/": "／", "?": "？", "*": "＊", "[": "【", "]": "】" };
+function toSafeSheetName(name, usedNames) {
+  let cleaned = String(name == null ? "" : name)
+    .replace(/[:\\/?*[\]]/g, ch => SHEET_NAME_SANITIZE_MAP[ch] || "-")
+    .trim();
+  if (!cleaned) cleaned = "Sheet";
+  if (cleaned.length > 31) cleaned = cleaned.slice(0, 31);
+  let finalName = cleaned;
+  let n = 2;
+  while (usedNames && usedNames.has(finalName)) {
+    const suffix = "(" + n + ")";
+    finalName = cleaned.slice(0, 31 - suffix.length) + suffix;
+    n++;
+  }
+  if (usedNames) usedNames.add(finalName);
+  return finalName;
+}
+
 function exportPaperExcel() {
   // P1.4: 确保 SheetJS 已加载
   if (typeof XLSX === "undefined") { loadSheetJS().then(() => exportPaperExcel()).catch(() => showToast("Excel 库加载失败，请检查网络")); return; }
   const wb = XLSX.utils.book_new();
   const currentPapers = getPapersByPriceList(CURRENT_PRICE_LIST_ID);
+  const usedSheetNames = new Set();
   for (const paper of currentPapers) {
     const ws = XLSX.utils.aoa_to_sheet(paperToSheetRows(paper));
-    XLSX.utils.book_append_sheet(wb, ws, paper.shortName || paper.name);
+    XLSX.utils.book_append_sheet(wb, ws, toSafeSheetName(paper.shortName || paper.name, usedSheetNames));
   }
   const plName = getCurrentPriceList().name;
   XLSX.writeFile(wb, `KOKALabel${plName}_${formatDateFile()}.xlsx`);
@@ -4055,6 +4078,7 @@ function downloadPaperTemplate() {
   // 每个 Sheet 均含「直接系数档位 / 最高倍数 / 最低倍数」三行：
   //   - 有直接系数的 Sheet（如 350/400/702铜版纸 等）已填实际档位/最高/最低
   //   - 无直接系数的 Sheet（700布纹纸 / 40C棉麻布）提供占位档位行，最高/最低留空，方便填写后重新导入
+  const usedSheetNames = new Set(); // v9.7.2：Sheet 名清洗（含 / 等非法字符的简称会导致导出失败）
   DEFAULT_PAPER_CONFIG.forEach((paper, idx) => {
     const rows = [];
     // 元信息区
@@ -4116,7 +4140,7 @@ function downloadPaperTemplate() {
     }
 
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    XLSX.utils.book_append_sheet(wb, ws, paper.shortName || ("Sheet" + (idx + 1)));
+    XLSX.utils.book_append_sheet(wb, ws, toSafeSheetName(paper.shortName || ("Sheet" + (idx + 1)), usedSheetNames));
   });
 
   XLSX.writeFile(wb, "KOKALabel1号报价表模板_" + formatDateFile() + ".xlsx");

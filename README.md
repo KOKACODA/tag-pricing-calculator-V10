@@ -6,7 +6,7 @@
 
 ## 线上体验
 
-- 最新版（v9.7.1）：https://tag-pricing-calculator-v5.pages.dev
+- 最新版（v9.7.2）：https://tag-pricing-calculator-v5.pages.dev
 
 ## 功能一览
 
@@ -26,8 +26,8 @@
 
 | 分支 | 版本 | 状态 |
 |---|---|---|
-| `v8` | v9.7.1 | **当前线上版本**，在此开发 |
-| `main` | v9.7.1 | 已与 `v8` 同步（v9.5.0 起随版同步） |
+| `v8` | v9.7.2 | **当前线上版本**，在此开发 |
+| `main` | v9.7.2 | 已与 `v8` 同步（v9.5.0 起随版同步） |
 
 > 旧 v7.10 谱系（v1.0 → v7.10，独立 git 历史）不再保留于 `main`，其历史可经本地备份 tag `archive/v7.10-main` 追溯，完整记录见 `docs/项目历史与技术总档案.md` 与 `docs/main-branch-summary.md`。
 

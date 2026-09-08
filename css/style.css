@@ -1,4 +1,4 @@
-/* KOKALabel报价系统 v9.7.1 - 样式表 */
+/* KOKALabel报价系统 v9.7.2 - 样式表 */
 
 /* ===================== 折叠区（附加工艺 / 吊绳类型） ===================== */
 .collapsible .collapse-toggle {
@@ -444,15 +444,15 @@
       font-size: 13px;
     }
 
-    /* 参数输入 - 吊绳类型折叠标题：加大字体、红色高亮（含“点击展开”提示；选项本身不变红） */
-    #page-calculator .rope-toggle,
-    #page-calculator .rope-toggle .collapse-hint {
+    /* 参数输入 - 附加工艺/吊绳类型折叠标题：加大字体、红色高亮（含“点击展开”提示；选项本身不变红） */
+    #page-calculator .collapse-toggle,
+    #page-calculator .collapse-toggle .collapse-hint {
       font-size: 15px;
       font-weight: 700;
       color: #b91c1c;
     }
-    #page-calculator .rope-toggle:hover,
-    #page-calculator .rope-toggle:hover .collapse-hint {
+    #page-calculator .collapse-toggle:hover,
+    #page-calculator .collapse-toggle:hover .collapse-hint {
       color: #991b1b;
     }
 
