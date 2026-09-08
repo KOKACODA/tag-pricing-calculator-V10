@@ -39,18 +39,41 @@ function hexToBytes(hex) { const a = new Uint8Array(hex.length / 2); for (let i 
 
 // ---------- 账号 CRUD（KV AUTH，key: u:<username>）----------
 const U_PREFIX = 'u:';
+const U_INDEX = 'u_index';
 export async function getUser(env, username) {
   const raw = await env.AUTH.get(U_PREFIX + username);
   return raw ? JSON.parse(raw) : null;
 }
 export async function saveUser(env, username, user) {
   await env.AUTH.put(U_PREFIX + username, JSON.stringify(user));
+  // 同步更新用户名索引（幂等）
+  const names = await indexNames(env);
+  if (!names.includes(username)) {
+    names.push(username);
+    await env.AUTH.put(U_INDEX, JSON.stringify(names));
+  }
 }
-export async function listUsers(env) {
+export async function deleteUser(env, username) {
+  await env.AUTH.delete(U_PREFIX + username);
+  const names = await indexNames(env);
+  const next = names.filter(n => n !== username);
+  if (next.length !== names.length) await env.AUTH.put(U_INDEX, JSON.stringify(next));
+}
+// 读取用户名索引；缺失时回退到一次前缀扫描并回填（兼容旧数据）
+async function indexNames(env) {
+  const raw = await env.AUTH.get(U_INDEX);
+  if (raw) { try { const a = JSON.parse(raw); if (Array.isArray(a)) return a; } catch (e) { /* 重扫 */ } }
   const list = await env.AUTH.list({ prefix: U_PREFIX });
+  const names = list.keys.map(k => k.name.slice(U_PREFIX.length));
+  await env.AUTH.put(U_INDEX, JSON.stringify(names));
+  return names;
+}
+// 用「索引 + 强一致 get」枚举用户，避免 KV list 传播延迟导致列表缺账号
+export async function listUsers(env) {
+  const names = await indexNames(env);
   const out = [];
-  for (const k of list.keys) {
-    const raw = await env.AUTH.get(k.name);
+  for (const n of names) {
+    const raw = await env.AUTH.get(U_PREFIX + n);
     if (raw) { try { out.push(JSON.parse(raw)); } catch (e) { /* 跳过坏数据 */ } }
   }
   return out;

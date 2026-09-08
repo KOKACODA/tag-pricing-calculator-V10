@@ -1,5 +1,5 @@
 // /api/admin/users/[name]  —— 管理员：改昵称/改密 / 设时长 / 启停 / 删除
-import { json, getUser, saveUser, hashPassword, getSession, authToken, normalizeRole, countActiveAdmins } from '../../../_lib.js';
+import { json, getUser, saveUser, deleteUser, hashPassword, getSession, authToken, normalizeRole, countActiveAdmins } from '../../../_lib.js';
 
 async function requireAdmin(env, req) {
   const sid = authToken(req);
@@ -66,6 +66,6 @@ export async function onRequestDelete(context) {
     const activeAdmins = await countActiveAdmins(context.env);
     if (activeAdmins <= 1) return json({ ok: false, message: '至少保留一个启用的管理员' }, 400);
   }
-  await context.env.AUTH.delete('u:' + name);
+  await deleteUser(context.env, name);
   return json({ ok: true });
 }
