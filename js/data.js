@@ -9455,6 +9455,7 @@ let APP_PROFILE = loadFromStorage("appProfile", {
   defaultTier: null,
   defaultRope: "rope1",
   defaultPaperId: null,
+  defaultSizeType: "single",
   decimalPlaces: 2
 });
 // 旧版配置容错

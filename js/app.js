@@ -747,6 +747,7 @@ const els = {
   defaultTier: document.getElementById("defaultTier"),
   defaultRope: document.getElementById("defaultRope"),
   defaultPaper: document.getElementById("defaultPaper"),
+  defaultSizeType: document.getElementById("defaultSizeType"),
   decimalPlaces: document.getElementById("decimalPlaces"),
   saveProfileBtn: document.getElementById("saveProfileBtn"),
   exportProfileBtn: document.getElementById("exportProfileBtn"),
@@ -819,7 +820,7 @@ let toastTimer = null;
 let sheetsState = [];
 let activeHistoryRecordId = null;
 // 计算模式：默认直接系数计算（v6.1 起），持久化到 localStorage
-let calcMode = loadFromStorage("currentCalcMode", "direct"); // "standard" | "direct"
+let calcMode = loadFromStorage("currentCalcMode", "standard"); // "standard" | "direct"
 let defaultQuoteVisible = loadFromStorage("defaultQuoteVisible", true) !== false;
 // v8.0：邮费输入缓存（会话级，不持久化，刷新后重新询问）
 let shippingWeightCache = {};   // regionId -> 吊牌重量(kg)
@@ -942,7 +943,7 @@ function renderSheets() {
       craftIds: old && old.craftIds ? old.craftIds.slice() : [],
       width: old && old.width ? old.width : "55",
       length: old && old.length ? old.length : "30",
-      sizeType: old && old.sizeType ? old.sizeType : "single",
+      sizeType: old && old.sizeType ? old.sizeType : (APP_PROFILE.defaultSizeType || "single"),
       manualCode: old && old.manualCode != null ? old.manualCode : null
     });
   }
@@ -1025,13 +1026,6 @@ function renderSheets() {
             <label class="unit">长 (mm)</label>
             <input type="number" class="sheet-length" data-sheet="${index}" min="1" step="1" placeholder="30" value="${sheet.length}" />
           </div>
-          <div class="form-group size-type-group">
-            <label class="unit">类型</label>
-            <select class="sheet-size-type" data-sheet="${index}">
-              <option value="single"${sheet.sizeType === "single" ? " selected" : ""}>单张尺寸</option>
-              <option value="spread"${sheet.sizeType === "spread" ? " selected" : ""}>展开尺寸</option>
-            </select>
-          </div>
         </div>
       </div>
       <div class="form-group collapsible collapsed" style="margin-bottom: 0; margin-top: 12px;">
@@ -1086,13 +1080,10 @@ function renderSheets() {
   els.sheetList.querySelectorAll("input[type=checkbox][data-craft]").forEach(cb => {
     cb.addEventListener("change", onCraftChange);
   });
-  // 绑定每张纸的尺寸输入（input 元素同时绑定 input+change，select 元素仅绑定 change 避免双触发）
+  // 绑定每张纸的尺寸输入（input 元素同时绑定 input+change）
   els.sheetList.querySelectorAll(".sheet-width, .sheet-length").forEach(input => {
     input.addEventListener("input", onSheetSizeChange);
     input.addEventListener("change", onSheetSizeChange);
-  });
-  els.sheetList.querySelectorAll(".sheet-size-type").forEach(sel => {
-    sel.addEventListener("change", onSheetSizeChange);
   });
 
   // 若第一张纸发生变化，需要更新档位选项
@@ -1246,8 +1237,6 @@ function onSheetSizeChange(e) {
     sheetsState[index].width = input.value;
   } else if (input.classList.contains("sheet-length")) {
     sheetsState[index].length = input.value;
-  } else if (input.classList.contains("sheet-size-type")) {
-    sheetsState[index].sizeType = input.value;
   }
   // 尺寸变化时清除手动代码，恢复自动匹配
   sheetsState[index].manualCode = null;
@@ -2666,6 +2655,7 @@ function loadProfileToUI() {
   if (els.defaultRope) els.defaultRope.value = APP_PROFILE.defaultRope || "rope1";
   updateDefaultPaperOptions();
   if (els.defaultPaper) els.defaultPaper.value = APP_PROFILE.defaultPaperId || "";
+  if (els.defaultSizeType) els.defaultSizeType.value = APP_PROFILE.defaultSizeType || "single";
 }
 
 function updateDefaultTierOptions() {
@@ -2703,6 +2693,7 @@ function saveProfile() {
     defaultTier: els.defaultTier ? els.defaultTier.value : APP_PROFILE.defaultTier,
     defaultRope: els.defaultRope ? (els.defaultRope.value || "rope1") : APP_PROFILE.defaultRope,
     defaultPaperId: els.defaultPaper ? (els.defaultPaper.value || "") : APP_PROFILE.defaultPaperId,
+    defaultSizeType: els.defaultSizeType ? els.defaultSizeType.value : APP_PROFILE.defaultSizeType,
     decimalPlaces: els.decimalPlaces ? parseDecimalPlaces(els.decimalPlaces.value) : parseDecimalPlaces(APP_PROFILE.decimalPlaces)
   };
   saveToStorage("appProfile", APP_PROFILE);
