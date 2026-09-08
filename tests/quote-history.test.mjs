@@ -35,7 +35,8 @@ function loadQuoteHistoryHelpers() {
 
   const source = `${dataSource}\n${appSource.slice(0, renderBoundary)}\n` +
     "globalThis.__quoteHistoryApi = { " +
-    "shouldShowDefaultQuoteCards, formatQuoteRecordNumber, buildQuoteHistoryRecord " +
+    "shouldShowDefaultQuoteCards, formatQuoteRecordNumber, buildQuoteHistoryRecord, " +
+    "computeStandardOverridePrice, computeDirectTempTotals " +
     "};";
   vm.runInContext(source, context, { filename: "quote-history.bundle.js" });
   return context.__quoteHistoryApi;
@@ -182,5 +183,78 @@ test("v9.6 历史价格读取优先返回临时修改后的价格", () => {
   // override 存在但价格非法 → 回退原价
   const fallback = { ...baseRecord, snapshot: { ...baseRecord.snapshot, override: { kind: "standard" } } };
   assert.equal(api.getHistoryRecordPrimaryPrice(fallback), 86.4);
+});
+
+test("v9.7 computeStandardOverridePrice 四分支：无修改 / 仅系数 / 双修改 / 仅邮费", () => {
+  const api = loadQuoteHistoryHelpers();
+  const result = {
+    cost: 72,
+    shippingPrice: 8,
+    costIncomplete: false,
+    pricesByLevel: [{ levelName: "普通客户", coefficient: 1.2 }]
+  };
+
+  // 无任何生效修改 → null（不写入 override）
+  assert.equal(api.computeStandardOverridePrice(result, {}), null);
+  assert.equal(api.computeStandardOverridePrice(result, { coeff: 1.35, newShipping: 10, hasCoeff: false, hasShipOverride: false }), null);
+
+  // 仅临时系数：price = 成本 × 系数
+  const coeffOnly = api.computeStandardOverridePrice(result, { coeff: 1.35, newShipping: 10, hasCoeff: true, hasShipOverride: false });
+  assert.equal(coeffOnly.price, 72 * 1.35);
+  assert.equal(coeffOnly.price1, undefined);
+
+  // 系数 + 邮费都修改：双算法价（渲染卡片与保存记录同源）
+  const both = api.computeStandardOverridePrice(result, { coeff: 1.35, newShipping: 10, hasCoeff: true, hasShipOverride: true });
+  assert.equal(both.newCost, 72 - 8 + 10);
+  assert.equal(both.price1, (72 - 8 + 10) * 1.35);
+  assert.equal(both.price2, (72 - 8) * 1.35 + 10);
+
+  // 仅邮费快速修改：修改后成本 + 各客户等级按系数重算
+  const shipOnly = api.computeStandardOverridePrice(result, { coeff: 1.35, newShipping: 10, hasCoeff: false, hasShipOverride: true });
+  assert.equal(shipOnly.newCost, 74);
+  assert.equal(shipOnly.pricesByLevel.length, 1);
+  assert.equal(shipOnly.pricesByLevel[0].price, 74 * 1.2);
+});
+
+test("v9.7 computeDirectTempTotals 计算每纸临时系数（渲染与保存同源）", () => {
+  const api = loadQuoteHistoryHelpers();
+  // paperId 不存在于任何报价表 → hasDirect=false、discount=1，测试不依赖具体默认数据
+  const result = {
+    tier: 1000,
+    sheetDetails: [
+      { paperId: "paper-nope-1", paperName: "测试纸A", unitPrice: 80, originalUnitPrice: 100, sheetCraftTotal: 20 },
+      { paperId: "paper-nope-2", paperName: "测试纸B", unitPrice: 60, originalUnitPrice: 60, sheetCraftTotal: 0, isBatchDirect: true }
+    ],
+    batchDirectTotal: 60,
+    batchDirectCraftTotal: 0
+  };
+
+  const r = api.computeDirectTempTotals(result, ["1.5", "1"]);
+  // 纸A：(基础价100 × 1 + 工艺20) × 1.5 = 180；纸B：批量直接价 60（已含在 batchDirectTotal）
+  assert.equal(r.total, 240);
+  assert.equal(r.modified, true);
+  assert.equal(r.incomplete, false);
+  assert.equal(r.items[0].kind, "temp");
+  assert.equal(r.items[0].price, 180);
+  assert.equal(r.items[0].def, 1);
+  assert.equal(r.items[1].kind, "batchDirect");
+  assert.equal(r.items[1].price, 60);
+
+  // 全部系数等于默认值 → modified=false（保存时不写入 override）
+  const untouched = api.computeDirectTempTotals(result, ["1", "1"]);
+  assert.equal(untouched.modified, false);
+
+  // 无效系数（空/非数字/<0.01）→ incomplete=true 且该纸标记 invalid
+  const invalid = api.computeDirectTempTotals(result, ["abc", "1"]);
+  assert.equal(invalid.incomplete, true);
+  assert.equal(invalid.items[0].kind, "invalid");
+
+  // 批量直接价缺价 → incomplete=true
+  const missing = api.computeDirectTempTotals(
+    { ...result, batchDirectTotal: 0, sheetDetails: result.sheetDetails.map(sd => ({ ...sd, unitPrice: sd.isBatchDirect ? null : sd.unitPrice })) },
+    ["1", "1"]
+  );
+  assert.equal(missing.incomplete, true);
+  assert.equal(missing.items[1].price, null);
 });
 

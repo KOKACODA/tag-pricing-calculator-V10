@@ -1,5 +1,19 @@
 # KOKALabel 报价系统 变更日志
 
+## v9.7（2026-09-08）
+
+### 临时修改计算统一单源 + 历史列表事件委托 + 删除记录后统计同步刷新
+
+- **计算统一单源（防「显示价 ≠ 保存价」暗雷）**：新增两个公共计算函数，屏幕渲染与保存记录共用同一份公式，将来改计算规则只需改一处：
+  - `computeStandardOverridePrice(result, values)`：标准模式临时毛利系数/邮费快速修改的价格计算（双算法价、仅邮费各级重算等分支），`renderCustomCoeffCard` / `renderShippingOverrideCards`（屏幕卡片）与 `collectStandardOverride`（保存记录）统一调用。
+  - `computeDirectTempTotals(result, rawValues)`：直接模式每纸临时系数的计算（含批量直接价、无效系数、修改后总价、modified 标记），`renderTempCoeffResults`（屏幕明细）与 `collectDirectTempOverride`（保存记录）统一调用；算式文本拆到纯展示函数 `buildTempCoeffCalcStr`。
+  - 重构为纯函数行为等价改造：`node --check` + 全量测试通过，保存的 `snapshot.override` 数据格式与 v9.6 完全一致，旧记录读取不受影响。
+- **历史列表事件委托**：`renderHistory` 由「逐行 addEventListener（每行 3 个按钮）」改为**表格级单一 onclick 委托**（赋值天然幂等，重建 innerHTML 不叠加监听），历史记录几百条时渲染明显更快；disabled 按钮本身不触发 click，无需额外过滤。
+- **修复：删除历史记录后统计报表不刷新**：原逐行删除逻辑未调用 `renderStats()`，删除后统计（月度次数/热销尺寸/利润分布）停留在旧数据直到下次进页；v9.7 删除后立即刷新。
+- **勘误**：v9.6 提出的优化建议第 2 条「载入历史不回填临时修改」经查证为**误报**——载入回填自报价历史初版（`f738d9e`）即已实现（`inputs.customCoefficient` / `inputs.shippingOverride` / `inputs.tempCoefficients` 回填输入框后重算），本次仅验证未改动。
+- **测试**：`tests/quote-history.test.mjs` 新增 2 用例——`computeStandardOverridePrice` 四分支（无修改/仅系数/双修改/仅邮费）、`computeDirectTempTotals`（temp 计算/默认值未修改/无效系数/批量直接缺价），全套 36 用例通过。
+- 版本号同步：全站升至 v9.7（index.html / data.js / app.js / style.css / login.html / README / AGENTS / HANDOFF-v8）。
+
 ## v9.6（2026-09-08）
 
 ### 保存报价时固化临时修改（临时毛利系数 / 邮费快速修改 / 每纸临时直接系数）

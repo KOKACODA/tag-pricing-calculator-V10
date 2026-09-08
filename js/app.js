@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.6 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v9.7 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -254,6 +254,94 @@ function getDirectCoeffsForTier(tier, paper) {
     ...l,
     coefficient: Math.round((max - step * i) * 100) / 100
   }));
+}
+
+/**
+ * v9.7：标准模式临时修改的统一价格计算——渲染卡片（renderCustomCoeffCard /
+ * renderShippingOverrideCards）与保存记录（collectStandardOverride）共用同一份公式，
+ * 保证「屏幕显示价」与「保存价」永远一致。
+ * 输入：result（计算结果）+ { coeff, newShipping, hasCoeff, hasShipOverride }（来自 getOverrideValues）。
+ * 返回（无任何生效修改时 null）：
+ *   { kind: "standard", incomplete, coeff?, newShipping?, price?, price1?, price2?, newCost?, pricesByLevel? }
+ */
+function computeStandardOverridePrice(result, values) {
+  const { coeff, newShipping, hasCoeff, hasShipOverride } = values || {};
+  if (!hasCoeff && !hasShipOverride) return null;
+  const origShipping = result.shippingPrice || 0;
+  const cost = result.cost;
+  const o = { kind: "standard", incomplete: !!result.costIncomplete };
+  if (hasCoeff) o.coeff = coeff;
+  if (hasShipOverride) o.newShipping = newShipping;
+  if (hasCoeff && hasShipOverride) {
+    // 算法1（v8.1 现有）：邮费也参与乘系数 → (原成本 − 原邮费 + 新邮费) × 系数
+    o.newCost = cost - origShipping + newShipping;
+    o.price1 = o.newCost * coeff;
+    // 算法2（v9.0 新增）：邮费不乘系数 → (原成本 − 原邮费) × 系数 + 新邮费
+    o.price2 = (cost - origShipping) * coeff + newShipping;
+  } else if (hasCoeff) {
+    o.price = cost * coeff;
+  } else {
+    // 仅邮费快速修改：修改后成本 + 按客户等级系数重算各级价
+    o.newCost = cost - origShipping + newShipping;
+    o.pricesByLevel = (result.pricesByLevel || []).map(item => ({
+      levelName: item.levelName,
+      price: o.newCost * item.coefficient
+    }));
+  }
+  return o;
+}
+
+/**
+ * v9.7：直接系数模式每纸临时系数的统一计算——渲染结果（renderTempCoeffResults）
+ * 与保存记录（collectDirectTempOverride）共用同一份公式。
+ * 输入：result（计算结果）+ rawValues（每纸输入框原始文本数组）。
+ * 返回：{
+ *   total: 修改后总价（含批量直接价与批量直接工艺费）,
+ *   incomplete: 存在缺价/无效系数,
+ *   modified: 任一纸系数 ≠ 默认值（保存时用于判断是否写入 override）,
+ *   batchDirectCraftTotal: 批量直接工艺费（渲染明细行用）,
+ *   items: [{ kind: "batchDirect"|"invalid"|"temp", name, price?, coeff?, def?, base?, discount?, craftOfSheet?, hasDirect? }]
+ * }
+ */
+function computeDirectTempTotals(result, rawValues) {
+  const details = result.sheetDetails || [];
+  const tier = result.tier;
+  const batchDirectCraftTotal = result.batchDirectCraftTotal || 0;
+  let modified = false;
+  let incomplete = false;
+  let total = (result.batchDirectTotal || 0) + batchDirectCraftTotal;
+  const items = details.map((sd, i) => {
+    const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === sd.paperId);
+    const hasDirect = paper && paperHasDirectCoeff(paper);
+    // v7.0：批量直接报价纸张不参与临时系数，固定显示批量直接价
+    if (sd.isBatchDirect) {
+      if (sd.unitPrice == null) incomplete = true;
+      return { kind: "batchDirect", name: sd.paperName, price: sd.unitPrice };
+    }
+    const raw = rawValues[i] != null ? String(rawValues[i]).trim() : "";
+    const c = parseFloat(raw);
+    if (!raw || isNaN(c) || c < 0.01) {
+      incomplete = true;
+      return { kind: "invalid", name: sd.paperName, hasDirect: !!hasDirect };
+    }
+    // 默认值：有直接系数=该纸当前档位普通客户系数；无直接系数=1（与 renderTempCoeffInputs 一致）
+    let def = 1;
+    if (hasDirect) {
+      const coeffs = getDirectCoeffsForTier(tier, paper);
+      if (coeffs && coeffs[0]) def = Number(coeffs[0].coefficient);
+    }
+    if (c !== def) modified = true;
+    // 基础价：乘面积系数后的原价
+    const base = sd.originalUnitPrice != null ? sd.originalUnitPrice : sd.unitPrice;
+    // 无直接系数的纸张：有折扣打折扣，无折扣则原价
+    const discount = hasDirect ? 1 : (paper ? (paper.discount || 1) : 1);
+    // v7.2：工艺价先加到纸张价上再乘系数：(纸张价 + 工艺价) × 系数
+    const craftOfSheet = sd.sheetCraftTotal || 0;
+    const price = (base * discount + craftOfSheet) * c;
+    total += price;
+    return { kind: "temp", name: sd.paperName, coeff: c, def, base, discount, craftOfSheet, hasDirect: !!hasDirect, price };
+  });
+  return { total, incomplete, modified, batchDirectCraftTotal, items };
 }
 
 /**
@@ -1748,42 +1836,34 @@ function getOverrideValues() {
 
 function renderCustomCoeffCard() {
   if (!els.customPriceCard || !_lastResult) return;
-  const { coeff, newShipping, hasCoeff, hasShipOverride } = getOverrideValues();
-  if (!hasCoeff) {
+  // v9.7：统一走 computeStandardOverridePrice，与保存报价共用同一份公式
+  const o = computeStandardOverridePrice(_lastResult, getOverrideValues());
+  if (!o || o.coeff == null) {
     els.customPriceCard.style.display = "none";
     els.customPriceCard.innerHTML = "";
     return;
   }
-  const costIncomplete = _lastResult.costIncomplete;
   const missingHtml = '<span class="price-missing">部分缺价</span>';
   let html;
-  if (hasShipOverride) {
-    // 同时填写临时系数 + 邮费快速修改：并排显示两种算法
-    const origShipping = _lastResult.shippingPrice || 0;
-    // 算法1（v8.1 现有）：邮费也参与乘系数 → (原成本 − 原邮费 + 新邮费) × 系数
-    const price1 = (_lastResult.cost - origShipping + newShipping) * coeff;
-    // 算法2（v9.0 新增）：邮费不乘系数 → (原成本 − 原邮费) × 系数 + 新邮费
-    const base = (_lastResult.cost - origShipping) * coeff;
-    const price2 = base + newShipping;
+  if (o.price != null) {
     html = `
       <div class="price-card custom-coeff">
-        <span class="coeff-badge">×${coeff}</span>
-        <div class="level-name">改邮费后成本 ×${coeff}<span class="level-sub">（含新邮费一起乘）</span></div>
-        <div class="level-price">${costIncomplete ? missingHtml : formatMoney(price1) + '<span class="unit">元</span>'}</div>
-      </div>
-      <div class="price-card custom-coeff coeff-shipping-later">
-        <span class="coeff-badge">×${coeff}</span>
-        <div class="level-name">改后成本 ×${coeff} + 新邮费<span class="level-sub">（邮费不乘系数）</span></div>
-        <div class="level-price">${costIncomplete ? missingHtml : formatMoney(price2) + '<span class="unit">元</span>'}</div>
+        <span class="coeff-badge">×${o.coeff}</span>
+        <div class="level-name">临时系数 ${o.coeff}</div>
+        <div class="level-price">${o.incomplete ? missingHtml : formatMoney(o.price) + '<span class="unit">元</span>'}</div>
       </div>
     `;
   } else {
-    const price = _lastResult.cost * coeff;
     html = `
       <div class="price-card custom-coeff">
-        <span class="coeff-badge">×${coeff}</span>
-        <div class="level-name">临时系数 ${coeff}</div>
-        <div class="level-price">${costIncomplete ? missingHtml : formatMoney(price) + '<span class="unit">元</span>'}</div>
+        <span class="coeff-badge">×${o.coeff}</span>
+        <div class="level-name">改邮费后成本 ×${o.coeff}<span class="level-sub">（含新邮费一起乘）</span></div>
+        <div class="level-price">${o.incomplete ? missingHtml : formatMoney(o.price1) + '<span class="unit">元</span>'}</div>
+      </div>
+      <div class="price-card custom-coeff coeff-shipping-later">
+        <span class="coeff-badge">×${o.coeff}</span>
+        <div class="level-name">改后成本 ×${o.coeff} + 新邮费<span class="level-sub">（邮费不乘系数）</span></div>
+        <div class="level-price">${o.incomplete ? missingHtml : formatMoney(o.price2) + '<span class="unit">元</span>'}</div>
       </div>
     `;
   }
@@ -1838,107 +1918,85 @@ function renderTempCoeffInputs() {
  */
 function renderTempCoeffResults() {
   if (!els.tempCoeffResults || !_lastResult) return;
-  const details = _lastResult.sheetDetails;
-  // v7.2：常规工艺费已并入各纸张（纸张+工艺）× 系数，仅批量直接报价工艺费单独累加
-  const batchDirectCraftTotal = _lastResult.batchDirectCraftTotal || 0;
-  const batchDirectTotal = _lastResult.batchDirectTotal || 0;
-  const inputs = els.tempCoeffInputs.querySelectorAll(".temp-coeff-input");
-  let total = batchDirectTotal + batchDirectCraftTotal;
-  let incomplete = false;
-  const rows = [];
-  details.forEach((sd, i) => {
-    const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === sd.paperId);
-    const hasDirect = paper && paperHasDirectCoeff(paper);
-    // v7.0：批量直接报价纸张 → 固定价格，不乘临时系数
-    if (sd.isBatchDirect) {
-      if (sd.unitPrice == null) {
-        incomplete = true;
-        rows.push({
-          name: sd.paperName,
-          display: '<span class="price-missing">无该批量定价</span>',
-          tag: "批量直接价"
-        });
-      } else {
-        rows.push({
-          name: sd.paperName,
-          display: `¥${formatMoney(sd.unitPrice)}（批量直接价）`,
-          tag: "批量直接价"
-        });
-      }
-      return;
+  // v9.7：统一走 computeDirectTempTotals，与保存报价共用同一份公式；本函数只负责展示
+  const rawValues = els.tempCoeffInputs
+    ? Array.from(els.tempCoeffInputs.querySelectorAll(".temp-coeff-input")).map(input => input.value)
+    : [];
+  const r = computeDirectTempTotals(_lastResult, rawValues);
+  const rows = r.items.map(it => {
+    if (it.kind === "batchDirect") {
+      return {
+        name: it.name,
+        display: it.price == null
+          ? '<span class="price-missing">无该批量定价</span>'
+          : `¥${formatMoney(it.price)}（批量直接价）`,
+        tag: "批量直接价"
+      };
     }
-    const raw = inputs[i] ? inputs[i].value.trim() : "";
-    const coeff = parseFloat(raw);
-    if (!raw || isNaN(coeff) || coeff < 0.01) {
-      incomplete = true;
-      rows.push({
-        name: sd.paperName,
+    if (it.kind === "invalid") {
+      return {
+        name: it.name,
         display: '<span class="price-missing">无效系数</span>',
-        tag: !hasDirect ? "无直接系数" : ""
-      });
-      return;
+        tag: !it.hasDirect ? "无直接系数" : ""
+      };
     }
-    // 基础价：乘面积系数后的原价
-    const base = sd.originalUnitPrice != null ? sd.originalUnitPrice : sd.unitPrice;
-    // 无直接系数的纸张：有折扣打折扣，无折扣则原价
-    const discount = hasDirect ? 1 : (paper ? (paper.discount || 1) : 1);
-    // v7.2：工艺价先加到纸张价上再乘系数：(纸张价 + 工艺价) × 系数
-    const craftOfSheet = sd.sheetCraftTotal || 0;
-    const price = (base * discount + craftOfSheet) * coeff;
-    total += price;
-    // v6.14：无直接系数且系数为 1 时不显示冗余的 ×1
-    let calcStr;
-    if (!hasDirect && coeff === 1) {
-      calcStr = discount !== 1
-        ? (craftOfSheet > 0
-            ? `¥${formatMoney(base)} × ${discount}（折扣）+ ¥${formatMoney(craftOfSheet)} = ¥${formatMoney(price)}`
-            : `¥${formatMoney(base)} × ${discount}（折扣） = ¥${formatMoney(price)}`)
-        : (craftOfSheet > 0
-            ? `¥${formatMoney(base)} + ¥${formatMoney(craftOfSheet)} = ¥${formatMoney(price)}`
-            : `¥${formatMoney(price)}`);
-    } else if (!hasDirect) {
-      calcStr = discount !== 1
-        ? (craftOfSheet > 0
-            ? `(¥${formatMoney(base)} × ${discount}（折扣）+ ¥${formatMoney(craftOfSheet)}) × ${coeff} = ¥${formatMoney(price)}`
-            : `¥${formatMoney(base)} × ${discount}（折扣）× ${coeff} = ¥${formatMoney(price)}`)
-        : (craftOfSheet > 0
-            ? `(¥${formatMoney(base)} + ¥${formatMoney(craftOfSheet)}) × ${coeff} = ¥${formatMoney(price)}`
-            : `¥${formatMoney(base)} × ${coeff} = ¥${formatMoney(price)}`);
-    } else {
-      calcStr = craftOfSheet > 0
-        ? `(¥${formatMoney(base)} + ¥${formatMoney(craftOfSheet)}) × ${coeff} = ¥${formatMoney(price)}`
-        : `¥${formatMoney(base)} × ${coeff} = ¥${formatMoney(price)}`;
-    }
-    rows.push({
-      name: sd.paperName,
-      display: calcStr,
-      tag: !hasDirect ? "无直接系数" : ""
-    });
+    return {
+      name: it.name,
+      display: buildTempCoeffCalcStr(it),
+      tag: !it.hasDirect ? "无直接系数" : ""
+    };
   });
   els.tempCoeffResults.innerHTML = `
     <div class="price-card custom-coeff temp-result-card">
       <span class="coeff-badge">临时</span>
       <div class="level-name">临时报价结果</div>
       <div class="direct-detail-list">
-        ${rows.map(r => `
+        ${rows.map(row => `
           <div class="direct-detail-row">
-            <span class="dd-name">${escapeHtml(r.name)}</span>
-            <span class="dd-calc">${r.display}</span>
-            ${r.tag ? `<span class="dd-tag">${r.tag}</span>` : ''}
+            <span class="dd-name">${escapeHtml(row.name)}</span>
+            <span class="dd-calc">${row.display}</span>
+            ${row.tag ? `<span class="dd-tag">${row.tag}</span>` : ''}
           </div>
         `).join("")}
-        ${batchDirectCraftTotal > 0 ? `
+        ${r.batchDirectCraftTotal > 0 ? `
         <div class="direct-detail-row">
           <span class="dd-name">工艺（批量直接）</span>
-          <span class="dd-calc">¥${formatMoney(batchDirectCraftTotal)}</span>
+          <span class="dd-calc">¥${formatMoney(r.batchDirectCraftTotal)}</span>
         </div>` : ''}
       </div>
-      <div class="level-price">${incomplete
+      <div class="level-price">${r.incomplete
         ? '<span class="price-missing">部分缺价</span>'
-        : formatMoney(total) + '<span class="unit">元</span>'}</div>
+        : formatMoney(r.total) + '<span class="unit">元</span>'}</div>
     </div>
   `;
   els.tempCoeffResults.style.display = "flex";
+}
+
+// v9.7：临时系数明细行的算式文本（纯展示层，价格计算统一在 computeDirectTempTotals）
+function buildTempCoeffCalcStr(it) {
+  const { base, discount, craftOfSheet, coeff, price, hasDirect } = it;
+  // v6.14：无直接系数且系数为 1 时不显示冗余的 ×1
+  if (!hasDirect && coeff === 1) {
+    return discount !== 1
+      ? (craftOfSheet > 0
+          ? `¥${formatMoney(base)} × ${discount}（折扣）+ ¥${formatMoney(craftOfSheet)} = ¥${formatMoney(price)}`
+          : `¥${formatMoney(base)} × ${discount}（折扣） = ¥${formatMoney(price)}`)
+      : (craftOfSheet > 0
+          ? `¥${formatMoney(base)} + ¥${formatMoney(craftOfSheet)} = ¥${formatMoney(price)}`
+          : `¥${formatMoney(price)}`);
+  }
+  if (!hasDirect) {
+    return discount !== 1
+      ? (craftOfSheet > 0
+          ? `(¥${formatMoney(base)} × ${discount}（折扣）+ ¥${formatMoney(craftOfSheet)}) × ${coeff} = ¥${formatMoney(price)}`
+          : `¥${formatMoney(base)} × ${discount}（折扣）× ${coeff} = ¥${formatMoney(price)}`)
+      : (craftOfSheet > 0
+          ? `(¥${formatMoney(base)} + ¥${formatMoney(craftOfSheet)}) × ${coeff} = ¥${formatMoney(price)}`
+          : `¥${formatMoney(base)} × ${coeff} = ¥${formatMoney(price)}`);
+  }
+  return craftOfSheet > 0
+    ? `(¥${formatMoney(base)} + ¥${formatMoney(craftOfSheet)}) × ${coeff} = ¥${formatMoney(price)}`
+    : `¥${formatMoney(base)} × ${coeff} = ¥${formatMoney(price)}`;
 }
 
 /**
@@ -1946,9 +2004,10 @@ function renderTempCoeffResults() {
  */
 function renderShippingOverrideCards() {
   if (!els.shippingOverrideCards || !_lastResult) return;
-  const { newShipping, hasCoeff, hasShipOverride } = getOverrideValues();
+  // v9.7：统一走 computeStandardOverridePrice，与保存报价共用同一份公式
+  const o = computeStandardOverridePrice(_lastResult, getOverrideValues());
   // 没输入/无效值时整体隐藏
-  if (!hasShipOverride) {
+  if (!o || o.newShipping == null) {
     els.shippingOverrideCards.style.display = "none";
     els.shippingOverrideLabel.style.display = "none";
     if (els.shippingOverrideCost) els.shippingOverrideCost.style.display = "none";
@@ -1957,14 +2016,12 @@ function renderShippingOverrideCards() {
   }
   // v8.7：同时填了临时毛利系数时，邮费修改的 label 和 3 个客户等级卡片仍隐藏（合并结果在临时系数卡片），
   // 但「修改后成本」红字保持显示，让用户知道新成本是多少（再被临时系数相乘得到最终价）
-  if (hasCoeff) {
-    const origShippingForCost = _lastResult.shippingPrice || 0;
-    const newCostForCoeff = _lastResult.cost - origShippingForCost + newShipping;
+  if (o.coeff != null) {
     if (els.shippingOverrideCost) {
       if (els.shippingOverrideCostValue) {
-        els.shippingOverrideCostValue.textContent = _lastResult.costIncomplete
+        els.shippingOverrideCostValue.textContent = o.incomplete
           ? "部分缺价"
-          : "¥ " + formatMoney(newCostForCoeff);
+          : "¥ " + formatMoney(o.newCost);
       }
       els.shippingOverrideCost.style.display = "flex";
     }
@@ -1973,31 +2030,24 @@ function renderShippingOverrideCards() {
     els.shippingOverrideCards.innerHTML = "";
     return;
   }
-  // 用修改后的邮费重算成本
-  const origShipping = _lastResult.shippingPrice || 0;
-  const newCost = _lastResult.cost - origShipping + newShipping;
-  const costIncomplete = _lastResult.costIncomplete;
   // v8.3：显示修改后成本（高亮红字）
   if (els.shippingOverrideCost) {
     if (els.shippingOverrideCostValue) {
-      els.shippingOverrideCostValue.textContent = costIncomplete
+      els.shippingOverrideCostValue.textContent = o.incomplete
         ? "部分缺价"
-        : "¥ " + formatMoney(newCost);
+        : "¥ " + formatMoney(o.newCost);
     }
     els.shippingOverrideCost.style.display = "flex";
   }
   // 渲染 3 个默认等级报价卡片
-  els.shippingOverrideCards.innerHTML = _lastResult.pricesByLevel.map((item, idx) => {
-    const newPrice = newCost * item.coefficient;
-    return `
-      <div class="price-card${idx === 0 ? " highlight" : ""}">
-        <div class="level-name">${escapeHtml(item.levelName)}</div>
-        <div class="level-price">${costIncomplete
-          ? '<span class="price-missing">部分缺价</span>'
-          : formatMoney(newPrice) + '<span class="unit">元</span>'}</div>
-      </div>
-    `;
-  }).join("");
+  els.shippingOverrideCards.innerHTML = (o.pricesByLevel || []).map((item, idx) => `
+    <div class="price-card${idx === 0 ? " highlight" : ""}">
+      <div class="level-name">${escapeHtml(item.levelName)}</div>
+      <div class="level-price">${o.incomplete
+        ? '<span class="price-missing">部分缺价</span>'
+        : formatMoney(item.price) + '<span class="unit">元</span>'}</div>
+    </div>
+  `).join("");
   els.shippingOverrideLabel.style.display = "block";
   els.shippingOverrideCards.style.display = "flex";
 }
@@ -2909,76 +2959,25 @@ function collectQuoteOverride() {
   return calcMode === "direct" ? collectDirectTempOverride() : collectStandardOverride();
 }
 
-// 标准模式：临时毛利系数 + 邮费快速修改（计算逻辑与 renderCustomCoeffCard / renderShippingOverrideCards 一致）
+// 标准模式：临时毛利系数 + 邮费快速修改（v9.7 起与渲染卡片共用 computeStandardOverridePrice）
 function collectStandardOverride() {
-  const { coeff, newShipping, hasCoeff, hasShipOverride } = getOverrideValues();
-  if (!hasCoeff && !hasShipOverride) return null;
-  const origShipping = _lastResult.shippingPrice || 0;
-  const cost = _lastResult.cost;
-  const o = { kind: "standard", incomplete: !!_lastResult.costIncomplete };
-  if (hasCoeff) o.coeff = coeff;
-  if (hasShipOverride) o.newShipping = newShipping;
-  if (hasCoeff && hasShipOverride) {
-    // 算法1：邮费也参与乘系数 → (原成本 − 原邮费 + 新邮费) × 系数
-    o.newCost = cost - origShipping + newShipping;
-    o.price1 = o.newCost * coeff;
-    // 算法2：邮费不乘系数 → (原成本 − 原邮费) × 系数 + 新邮费
-    o.price2 = (cost - origShipping) * coeff + newShipping;
-  } else if (hasCoeff) {
-    o.price = cost * coeff;
-  } else {
-    // 仅邮费快速修改：修改后成本 + 按客户等级系数重算
-    o.newCost = cost - origShipping + newShipping;
-    o.pricesByLevel = (_lastResult.pricesByLevel || []).map(item => ({
-      levelName: item.levelName,
-      price: o.newCost * item.coefficient
-    }));
-  }
-  return o;
+  return computeStandardOverridePrice(_lastResult, getOverrideValues());
 }
 
-// 直接系数模式：每纸临时直接系数（计算逻辑与 renderTempCoeffResults 一致）
+// 直接系数模式：每纸临时直接系数（v9.7 起与渲染结果共用 computeDirectTempTotals）
 function collectDirectTempOverride() {
   if (!els.tempCoeffInputs) return null;
-  const inputs = Array.from(els.tempCoeffInputs.querySelectorAll(".temp-coeff-input"));
-  if (!inputs.length) return null;
-  const details = _lastResult.sheetDetails || [];
-  const tier = _lastResult.tier;
-  let modified = false;
-  let incomplete = false;
-  let total = (_lastResult.batchDirectTotal || 0) + (_lastResult.batchDirectCraftTotal || 0);
-  const items = [];
-  details.forEach((sd, i) => {
-    const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === sd.paperId);
-    const hasDirect = paper && paperHasDirectCoeff(paper);
-    if (sd.isBatchDirect) {
-      if (sd.unitPrice == null) incomplete = true;
-      items.push({ name: sd.paperName, kind: "batchDirect", price: sd.unitPrice });
-      return;
-    }
-    const raw = inputs[i] ? inputs[i].value.trim() : "";
-    const c = parseFloat(raw);
-    if (!raw || isNaN(c) || c < 0.01) {
-      incomplete = true;
-      items.push({ name: sd.paperName, kind: "invalid" });
-      return;
-    }
-    // 默认值：有直接系数=该纸当前档位普通客户系数；无直接系数=1（与 renderTempCoeffInputs 一致）
-    let def = 1;
-    if (hasDirect) {
-      const coeffs = getDirectCoeffsForTier(tier, paper);
-      if (coeffs && coeffs[0]) def = Number(coeffs[0].coefficient);
-    }
-    if (c !== def) modified = true;
-    const base = sd.originalUnitPrice != null ? sd.originalUnitPrice : sd.unitPrice;
-    const discount = hasDirect ? 1 : (paper ? (paper.discount || 1) : 1);
-    const craftOfSheet = sd.sheetCraftTotal || 0;
-    const price = (base * discount + craftOfSheet) * c;
-    total += price;
-    items.push({ name: sd.paperName, kind: "temp", coeff: c, def, price });
-  });
-  if (!modified) return null;
-  return { kind: "direct", total, incomplete, items };
+  const rawValues = Array.from(els.tempCoeffInputs.querySelectorAll(".temp-coeff-input")).map(input => input.value);
+  const r = computeDirectTempTotals(_lastResult, rawValues);
+  if (!r.modified) return null;
+  return {
+    kind: "direct",
+    total: r.total,
+    incomplete: r.incomplete,
+    items: r.items.map(it => it.kind === "temp"
+      ? { name: it.name, kind: "temp", coeff: it.coeff, def: it.def, price: it.price }
+      : { name: it.name, kind: it.kind, price: it.price })
+  };
 }
 
 function saveCurrentQuote() {
@@ -3304,26 +3303,29 @@ function renderHistory() {
     `;
   }).join("");
 
-  tbody.querySelectorAll("[data-action='view-history']").forEach(btn => {
-    btn.addEventListener("click", () => showHistoryDetail(btn.dataset.id));
-  });
-
-  tbody.querySelectorAll("[data-action='load-history']:not([disabled])").forEach(btn => {
-    btn.addEventListener("click", () => loadHistoryParameters(btn.dataset.id));
-  });
-
-  tbody.querySelectorAll("[data-action='delete-history']").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const item = getHistory().find(x => x.id === btn.dataset.id);
+  // v9.7：表格级事件委托（onclick 赋值天然幂等，重建 innerHTML 不会叠加监听），
+  // 替代逐行 addEventListener——历史记录几百条时渲染明显更快；disabled 按钮不触发 click，无需额外过滤
+  tbody.onclick = (event) => {
+    const btn = event.target.closest("[data-action]");
+    if (!btn) return;
+    const action = btn.dataset.action;
+    const id = btn.dataset.id;
+    if (action === "view-history") {
+      showHistoryDetail(id);
+    } else if (action === "load-history") {
+      if (!btn.disabled) loadHistoryParameters(id);
+    } else if (action === "delete-history") {
+      const item = getHistory().find(x => x.id === id);
       if (!item) return;
       const title = item.title || item.customerName || item.recordNo || "该报价";
       if (!confirm(`确定删除报价记录「${title}」？`)) return;
-      const next = getHistory().filter(x => x.id !== btn.dataset.id);
+      const next = getHistory().filter(x => x.id !== id);
       saveHistory(next);
       renderHistory();
+      renderStats();
       showToast("已删除记录");
-    });
-  });
+    }
+  };
 }
 
 /**
