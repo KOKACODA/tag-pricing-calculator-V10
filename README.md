@@ -6,11 +6,12 @@
 
 ## 线上体验
 
-- 最新版（v9.4.2）：https://tag-pricing-calculator-v5.pages.dev
+- 最新版（v9.5.0）：https://tag-pricing-calculator-v5.pages.dev
 
 ## 功能一览
 
-- **智能报价计算器**：多纸张、每张独立尺寸/材质/工艺，直接系数 / 标准 / 批量直接三种计价，邮费三档，吊牌成本合计
+- **账号登录**：管理员 / 业务员 / 访客三级角色；管理员可管理账号（增删改/启停/改密/设时长）、上传全用户共享默认数据；访客仅见智能报价计算器（Cloudflare Pages Functions + KV，本地 `file://` 离线不受影响）
+- **智能报价计算器**：多纸张、每张独立尺寸/材质/工艺，直接系数 / 标准 / 批量直接三种计价，邮费三档，吊牌成本合计；「附加工艺」「吊绳类型」默认折叠
 - **报价历史**：保存快照 + 输入参数，查看 / 删除 / 重新载入
 - **统计报表**：月度报价次数、热销尺寸、利润分布（数据仅本地保存，不上传；位于「快照与统计报表」框体）
 - **报价表组查询**：价格表浏览 + 就地改价 + 纸张模糊搜索
@@ -25,8 +26,8 @@
 
 | 分支 | 版本 | 状态 |
 |---|---|---|
-| `v8` | v9.4.2 | **当前线上版本**，在此开发 |
-| `main` | v9.4.2 | 已与 `v8` 同步（v9.4.2 起） |
+| `v8` | v9.5.0 | **当前线上版本**，在此开发 |
+| `main` | v9.4.2 | 已与 `v8` 同步（v9.4.2 起）；v9.5.0 上线后同步 |
 
 > 旧 v7.10 谱系（v1.0 → v7.10，独立 git 历史）不再保留于 `main`，其历史可经本地备份 tag `archive/v7.10-main` 追溯，完整记录见 `docs/项目历史与技术总档案.md` 与 `docs/main-branch-summary.md`。
 
@@ -44,11 +45,18 @@ python3 -m http.server 8080
 ```
 .
 ├── index.html                  # HTML 骨架 + CSP
+├── login.html                  # 账号登录页（在线部署时启用）
 ├── css/style.css               # 全部样式
 ├── js/
 │   ├── data.js                 # 数据配置 + 存储 + 版本迁移
 │   ├── app.js                  # 计算 + 渲染 + 交互
+│   ├── auth.js                 # 前端账号访问控制（角色门控/账号面板）
+│   ├── login.js                # 登录页脚本
 │   └── vendor/xlsx.full.min.js # SheetJS（本地化）
+├── functions/                  # Cloudflare Pages Functions 后端（账号+默认数据）
+│   ├── _lib.js                 # 共享库（PBKDF2/会话/角色/管理员保护）
+│   └── api/                    # auth/*、admin/users/*、default
+├── wrangler.toml               # KV 绑定配置（AUTH）
 ├── tests/*.test.mjs            # Node 单元测试
 ├── _headers / robots.txt       # 安全头 / noindex
 ├── AGENTS.md                   # AI Agent 接手只读入口

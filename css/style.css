@@ -1,4 +1,20 @@
-/* KOKALabel报价系统 v9.4.2 - 样式表 */
+/* KOKALabel报价系统 v9.5.0 - 样式表 */
+
+/* ===================== 折叠区（附加工艺 / 吊绳类型） ===================== */
+.collapsible .collapse-toggle {
+  display: flex; align-items: center; gap: 6px; width: 100%;
+  background: none; border: none; padding: 4px 0; cursor: pointer;
+  font-size: 13px; font-weight: 600; color: var(--text, #1f2937); text-align: left;
+}
+.collapsible .collapse-toggle:hover { color: var(--brand, #0f6fc4); }
+.collapsible .collapse-icon {
+  display: inline-block; font-size: 10px; color: var(--brand, #0f6fc4);
+  transition: transform .18s ease;
+}
+.collapsible.collapsed .collapse-icon { transform: rotate(-90deg); }
+.collapsible .collapse-hint { font-size: 11px; font-weight: 400; color: var(--text-secondary, #6b7280); }
+.collapsible .collapse-body { transition: opacity .18s ease; }
+.collapsible.collapsed .collapse-body { display: none; }
 
 /* ===================== 全局变量与重置 ===================== */
     :root {

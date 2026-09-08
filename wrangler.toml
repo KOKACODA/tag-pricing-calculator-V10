@@ -1,0 +1,13 @@
+# ============================================================
+# KOKALabel 报价系统 - Cloudflare Pages Functions 绑定配置
+# 说明：
+# - 敏感变量（SETUP_KEY / ADMIN_USER / ADMIN_PASS）不写入本文件，
+#   部署时用 `wrangler pages deploy --var` 注入，避免公仓库泄露。
+# - KV 命名空间 AUTH 承载：账号表(u:*) / 会话(s:*) / 默认数据(default:*)
+# ============================================================
+name = "tag-pricing-calculator-v5"
+compatibility_date = "2024-09-01"
+
+[[kv_namespaces]]
+binding = "AUTH"
+id = "0554f3f42a7f488696bef055ca562d52"

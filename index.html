@@ -6,11 +6,13 @@
   <meta name="googlebot" content="noindex, nofollow">
   <!-- P0 安全：CSP 策略（v7.9：SheetJS 已本地化，script-src 仅允许 'self'，离线双击打开亦可用） -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';">
-<title>KOKALabel报价系统 v9.4.2</title>
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=9.4.2">
-  <link rel="icon" type="image/png" href="favicon.png?v=9.4.2">
-  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=9.4.2">
-  <link rel="stylesheet" href="css/style.css?v=9.4.2">
+<title>KOKALabel报价系统 v9.5.0</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico?v=9.5.0">
+  <link rel="icon" type="image/png" href="favicon.png?v=9.5.0">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png?v=9.5.0">
+  <link rel="stylesheet" href="css/style.css?v=9.5.0">
+  <!-- v9.5 账号访问控制：http 部署时强制登录（管理员/业务员/访客）；file:// 本地离线不启用 -->
+  <script src="js/auth.js?v=9.5.0"></script>
 </head>
 <body>
   <!-- 顶部导航 -->
@@ -143,8 +145,9 @@
               </div>
             </div>
           </div>
-          <div class="form-group" style="margin-bottom: 0; margin-top: 12px;">
-            <label>附加工艺</label>
+          <div class="form-group collapsible collapsed" style="margin-bottom: 0; margin-top: 12px;">
+            <button type="button" class="collapse-toggle" aria-expanded="false"><span class="collapse-icon">▾</span>附加工艺 <span class="collapse-hint">点击展开</span></button>
+            <div class="collapse-body">
             <div class="craft-list">
               <label class="craft-item">
                 <input type="checkbox" value="craft3_1" data-sheet="0" data-craft="craft3_1">
@@ -170,6 +173,7 @@
                 <input type="checkbox" value="craft3_5" data-sheet="0" data-craft="craft3_5">
                 <span>击凸（单面）</span>
               </label>
+            </div>
             </div>
           </div>
         </div><div class="sheet-card">
@@ -254,8 +258,9 @@
               </div>
             </div>
           </div>
-          <div class="form-group" style="margin-bottom: 0; margin-top: 12px;">
-            <label>附加工艺</label>
+          <div class="form-group collapsible collapsed" style="margin-bottom: 0; margin-top: 12px;">
+            <button type="button" class="collapse-toggle" aria-expanded="false"><span class="collapse-icon">▾</span>附加工艺 <span class="collapse-hint">点击展开</span></button>
+            <div class="collapse-body">
             <div class="craft-list">
               <label class="craft-item">
                 <input type="checkbox" value="craft3_1" data-sheet="1" data-craft="craft3_1">
@@ -282,12 +287,14 @@
                 <span>击凸（单面）</span>
               </label>
             </div>
+            </div>
           </div>
         </div></div>
         </div>
 
-        <div class="form-group">
-          <label>吊绳类型</label>
+        <div class="form-group collapsible collapsed">
+          <button type="button" class="collapse-toggle" aria-expanded="false"><span class="collapse-icon">▾</span>吊绳类型 <span class="collapse-hint">点击展开</span></button>
+          <div class="collapse-body">
           <div id="rope" class="rope-list">
         <label class="rope-item">
           <input type="radio" name="rope" value="rope0">
@@ -424,6 +431,7 @@
           <span>防拆扣</span>
         </label>
       </div>
+          </div>
         </div>
 
         <div class="form-group">
@@ -558,7 +566,7 @@
     <!-- 页面2：1号报价表查询 -->
     <section class="page" id="page-table">
       <div class="card">
-        <h2 class="card-title">报价表组查询</h2>
+        <h2 class="card-title">报价表组查询 <button class="btn sm" id="uploadDefaultBtn" style="display:none;float:right;background:#059669;color:#fff;" title="把当前纸张/工艺/吊绳/邮费/客户等级配置上传为全用户共享的默认数据（仅管理员）">上传为默认数据</button></h2>
 
         <!-- 报价表组切换器 -->
         <div class="price-list-switcher">
@@ -1003,7 +1011,7 @@
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">当前版本</div>
-              <div class="setting-desc">KOKALabel报价系统 v9.4.2</div>
+              <div class="setting-desc">KOKALabel报价系统 v9.5.0</div>
             </div>
             <div class="setting-control">
               <span class="placeholder-badge">正式版</span>
@@ -1131,7 +1139,7 @@
   </div>
 
   <!-- v7.9: SheetJS 本地化（离线双击打开亦可导出/导入 Excel），先于业务脚本加载，XLSX 全局可用 -->
-<script src="js/vendor/xlsx.full.min.js?v=9.4.2"></script>
-  <script src="js/data.js?v=9.4.2"></script>
-  <script src="js/app.js?v=9.4.2"></script>
+<script src="js/vendor/xlsx.full.min.js?v=9.5.0"></script>
+  <script src="js/data.js?v=9.5.0"></script>
+  <script src="js/app.js?v=9.5.0"></script>
 </body></html>

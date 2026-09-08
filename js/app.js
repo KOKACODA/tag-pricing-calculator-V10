@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.4.2 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v9.5.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -1034,9 +1034,11 @@ function renderSheets() {
           </div>
         </div>
       </div>
-      <div class="form-group" style="margin-bottom: 0; margin-top: 12px;">
-        <label>附加工艺</label>
-        <div class="craft-list">${craftHtml}</div>
+      <div class="form-group collapsible collapsed" style="margin-bottom: 0; margin-top: 12px;">
+        <button type="button" class="collapse-toggle" aria-expanded="false"><span class="collapse-icon">▾</span>附加工艺 <span class="collapse-hint">点击展开</span></button>
+        <div class="collapse-body">
+          <div class="craft-list">${craftHtml}</div>
+        </div>
       </div>
     `;
 
@@ -4701,6 +4703,16 @@ function switchPage(pageName) {
 
 // -------------------- 事件绑定 --------------------
 function bindEvents() {
+  // v9.5：折叠区（附加工艺 / 吊绳类型）—— 事件委托，兼容动态生成的纸张卡片
+  document.addEventListener("click", e => {
+    const toggle = e.target.closest(".collapse-toggle");
+    if (!toggle) return;
+    const group = toggle.closest(".collapsible");
+    if (!group) return;
+    const collapsed = group.classList.toggle("collapsed");
+    toggle.setAttribute("aria-expanded", String(!collapsed));
+  });
+
   els.navBtns.forEach(btn => {
     btn.addEventListener("click", () => switchPage(btn.dataset.page));
   });
@@ -4937,6 +4949,43 @@ function showAccessGate(onUnlocked) {
   input.addEventListener("keydown", e => { if (e.key === "Enter") tryUnlock(); });
 }
 
+// -------------------- v9.5 默认数据上传（管理员） --------------------
+// 管理员把当前本地配置上传为全用户共享的默认数据；其他账号下次登录自动应用
+function initDefaultDataUpload() {
+  const btn = document.getElementById("uploadDefaultBtn");
+  if (!btn) return;
+  if (!window.KOKA) return; // 离线模式：不显示
+  const role = KOKA.user && KOKA.user.role;
+  if (role !== "admin") return; // 业务员 / 访客：不显示
+  btn.style.display = "";
+  btn.addEventListener("click", async () => {
+    if (!confirm("确认把当前所有配置（报价表组/纸张/工艺/吊绳/邮费/客户等级）上传为全用户共享的默认数据？\n其他账号下次登录将自动采用该配置。")) return;
+    btn.disabled = true;
+    try {
+      const packet = {
+        priceLists: PRICE_LISTS,
+        paperConfig: PAPER_CONFIG,
+        craftConfig: CRAFT_CONFIG,
+        ropeConfig: ROPE_CONFIG,
+        shippingConfig: SHIPPING_CONFIG,
+        customerLevels: CUSTOMER_LEVELS
+      };
+      const r = await KOKA.api("/api/default", { method: "POST", body: JSON.stringify({ data: packet }) });
+      const d = await r.json();
+      if (d.ok) {
+        localStorage.setItem("koka_default_version", String(d.version));
+        alert("已上传为默认数据 ✅\n版本时间：" + new Date(d.version).toLocaleString("zh-CN"));
+      } else {
+        alert(d.message || "上传失败");
+      }
+    } catch (e) {
+      alert(e && e.message || "上传失败");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+}
+
 // -------------------- 启动 --------------------
 // 兜底：任何 init 步骤失败不影响其他步骤，错误会显示在控制台
 function bootApp() {
@@ -4950,7 +4999,8 @@ function bootApp() {
     ["renderLevelSettings", renderLevelSettings],
     ["renderSnapshots", renderSnapshots],
     ["renderHistory", renderHistory],
-    ["renderPriceListSelector", renderPriceListSelector]
+    ["renderPriceListSelector", renderPriceListSelector],
+    ["initDefaultDataUpload", initDefaultDataUpload]
   ];
   steps.forEach(([name, fn]) => {
     try { if (typeof fn === "function") fn(); }
@@ -4986,7 +5036,9 @@ function bootApp() {
   catch (e) { console.error("[init] onCalculate 失败:", e); }
 }
 
-if (isAccessUnlocked()) {
+// v9.5：在线模式（账号登录）直接放行，跳过本地访问口令门；离线模式保留口令门
+const kokaOnline = typeof window.KOKA !== 'undefined' && !!KOKA.token;
+if (kokaOnline || isAccessUnlocked()) {
   bootApp();
 } else {
   showAccessGate(bootApp);
