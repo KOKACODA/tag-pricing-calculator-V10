@@ -4,12 +4,12 @@
 
 ## 一句话定位
 
-KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v9.5.0）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
+KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v9.5.1）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
 
 ## 分支真相（先确认，最容易踩坑）
 
-- `v8` = 当前线上版本（v9.5.0），**一切改动在这里**。
-- `main` = 已与 `v8` 同步（v9.4.2 起），v9.5.0 上线后同步。
+- `v8` = 当前线上版本（v9.5.1），**一切改动在这里**。
+- `main` = 已与 `v8` 同步（v9.5.0 起）。
 - 旧 v7.10 谱系（独立 git 历史）经本地备份 tag `archive/v7.10-main` 追溯，完整记录见 `docs/项目历史与技术总档案.md`。
 
 ## 核心数据流（一句话）
