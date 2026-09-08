@@ -1,4 +1,4 @@
-# KOKALabel 报价系统 v8.9.0 — 项目转手文档
+# KOKALabel 报价系统 v9.7 — 项目转手文档
 
 > 本文档供新接手的开发者或 AI Agent 快速了解项目全貌与当前状态。
 > 最后更新：2026-09-08 ｜ 当前版本：v9.7（`v8` 分支）
@@ -13,7 +13,7 @@
 | 名称 | KOKALabel 报价系统 |
 | 用途 | 吊牌 / 标签 / 不干胶印刷品报价（纸张 + 工艺 + 吊绳 + 邮费 + 客户等级系数） |
 | 部署 | Cloudflare Pages（项目名 `tag-pricing-calculator-v5`） |
-| 正式地址 | https://tag-pricing-calculator-v5.pages.dev（当前 v8.9.0） |
+| 正式地址 | https://tag-pricing-calculator-v5.pages.dev（当前 v9.7） |
 | GitHub | KOKACODA/tag-pricing-calculator-v5 |
 | 技术栈 | 原生 HTML + CSS + JavaScript（无框架）；SheetJS 本地化于 `js/vendor/xlsx.full.min.js` |
 | 存储 | 浏览器 `localStorage`（键前缀 `tagPricing_`，无后端、无数据库） |
@@ -29,7 +29,7 @@
 
 - v8 谱系来自另一台设备导出的压缩包（`8.5` / `8.6` / `8.8` 三个文件夹），根提交为 `v7.8 baseline`，与 `main` **无共同提交**，是两条独立 git 历史。
 - 生产域名已切换至 v8 分支最新提交；`main` 仅作历史保留，请勿再基于它开发。
-- 完整标签 `v7.8.1` ~ `v8.9.0`（含中间改动点）+ 快照标签 `archive-8.5/8.6/8.8` 已推送 GitHub。
+- 完整标签 `v7.8.1` ~ `v9.7`（含中间改动点）+ 快照标签 `archive-8.5/8.6/8.8` 已推送 GitHub。
 
 ---
 

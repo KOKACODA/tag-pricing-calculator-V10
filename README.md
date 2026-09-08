@@ -6,7 +6,7 @@
 
 ## 线上体验
 
-- 最新版（v9.5.0）：https://tag-pricing-calculator-v5.pages.dev
+- 最新版（v9.7）：https://tag-pricing-calculator-v5.pages.dev
 
 ## 功能一览
 
