@@ -1,4 +1,4 @@
-/* KOKALabel报价系统 v9.5.3 - 样式表 */
+/* KOKALabel报价系统 v9.6 - 样式表 */
 
 /* ===================== 折叠区（附加工艺 / 吊绳类型） ===================== */
 .collapsible .collapse-toggle {
@@ -2482,6 +2482,66 @@
       background: var(--danger-light);
       color: var(--danger);
       font-weight: 800;
+    }
+
+    /* v9.6 历史详情 - 临时修改区块（保存时生效的临时系数 / 邮费快速修改） */
+    .history-override-section {
+      border-left: 3px solid var(--danger);
+      background: var(--danger-light);
+    }
+    .history-override-summary {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--danger);
+      margin-bottom: 6px;
+    }
+    .history-override-summary .override-sep {
+      margin: 0 6px;
+      font-weight: 400;
+      opacity: .6;
+    }
+    .history-override-price {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 4px 0;
+      font-size: 13px;
+      color: var(--text);
+    }
+    .history-override-price strong {
+      color: var(--danger);
+      font-weight: 800;
+      white-space: nowrap;
+    }
+    .history-override-price.total {
+      border: 1px solid var(--danger-border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      margin-top: 6px;
+      background: rgba(255, 255, 255, .6);
+    }
+    .history-override-price.total strong {
+      font-size: 15px;
+    }
+    .history-override-items {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 6px;
+    }
+    .history-override-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+    .history-override-item strong {
+      color: var(--text);
+      font-weight: 700;
+      white-space: nowrap;
     }
 
     @media (max-width: 700px) {

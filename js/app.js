@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.5.3 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v9.6 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -165,7 +165,8 @@ function buildQuoteHistoryRecord({
   inputs,
   result,
   ropeName,
-  regionName
+  regionName,
+  override
 }) {
   const date = new Date(createdAt);
   const safeDate = isNaN(date.getTime()) ? new Date() : date;
@@ -174,6 +175,8 @@ function buildQuoteHistoryRecord({
   const snapshot = cloneQuoteData(result || {});
   snapshot.ropeName = String(ropeName || "");
   snapshot.regionName = String(regionName || "");
+  // v9.6：保存时生效的临时修改（临时毛利系数 / 邮费快速修改 / 每纸临时直接系数）及修改后价格
+  if (override) snapshot.override = cloneQuoteData(override);
 
   return {
     id: String(id || recordNo),
@@ -2896,6 +2899,88 @@ function collectCurrentQuoteInputs() {
   };
 }
 
+/**
+ * v9.6：保存报价时收集临时修改（标准模式：临时毛利系数 + 邮费快速修改；
+ * 直接系数模式：每纸临时直接系数）的当前生效值并计算修改后价格。
+ * 无任何生效修改时返回 null（不写入记录）。
+ */
+function collectQuoteOverride() {
+  if (!_lastResult) return null;
+  return calcMode === "direct" ? collectDirectTempOverride() : collectStandardOverride();
+}
+
+// 标准模式：临时毛利系数 + 邮费快速修改（计算逻辑与 renderCustomCoeffCard / renderShippingOverrideCards 一致）
+function collectStandardOverride() {
+  const { coeff, newShipping, hasCoeff, hasShipOverride } = getOverrideValues();
+  if (!hasCoeff && !hasShipOverride) return null;
+  const origShipping = _lastResult.shippingPrice || 0;
+  const cost = _lastResult.cost;
+  const o = { kind: "standard", incomplete: !!_lastResult.costIncomplete };
+  if (hasCoeff) o.coeff = coeff;
+  if (hasShipOverride) o.newShipping = newShipping;
+  if (hasCoeff && hasShipOverride) {
+    // 算法1：邮费也参与乘系数 → (原成本 − 原邮费 + 新邮费) × 系数
+    o.newCost = cost - origShipping + newShipping;
+    o.price1 = o.newCost * coeff;
+    // 算法2：邮费不乘系数 → (原成本 − 原邮费) × 系数 + 新邮费
+    o.price2 = (cost - origShipping) * coeff + newShipping;
+  } else if (hasCoeff) {
+    o.price = cost * coeff;
+  } else {
+    // 仅邮费快速修改：修改后成本 + 按客户等级系数重算
+    o.newCost = cost - origShipping + newShipping;
+    o.pricesByLevel = (_lastResult.pricesByLevel || []).map(item => ({
+      levelName: item.levelName,
+      price: o.newCost * item.coefficient
+    }));
+  }
+  return o;
+}
+
+// 直接系数模式：每纸临时直接系数（计算逻辑与 renderTempCoeffResults 一致）
+function collectDirectTempOverride() {
+  if (!els.tempCoeffInputs) return null;
+  const inputs = Array.from(els.tempCoeffInputs.querySelectorAll(".temp-coeff-input"));
+  if (!inputs.length) return null;
+  const details = _lastResult.sheetDetails || [];
+  const tier = _lastResult.tier;
+  let modified = false;
+  let incomplete = false;
+  let total = (_lastResult.batchDirectTotal || 0) + (_lastResult.batchDirectCraftTotal || 0);
+  const items = [];
+  details.forEach((sd, i) => {
+    const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === sd.paperId);
+    const hasDirect = paper && paperHasDirectCoeff(paper);
+    if (sd.isBatchDirect) {
+      if (sd.unitPrice == null) incomplete = true;
+      items.push({ name: sd.paperName, kind: "batchDirect", price: sd.unitPrice });
+      return;
+    }
+    const raw = inputs[i] ? inputs[i].value.trim() : "";
+    const c = parseFloat(raw);
+    if (!raw || isNaN(c) || c < 0.01) {
+      incomplete = true;
+      items.push({ name: sd.paperName, kind: "invalid" });
+      return;
+    }
+    // 默认值：有直接系数=该纸当前档位普通客户系数；无直接系数=1（与 renderTempCoeffInputs 一致）
+    let def = 1;
+    if (hasDirect) {
+      const coeffs = getDirectCoeffsForTier(tier, paper);
+      if (coeffs && coeffs[0]) def = Number(coeffs[0].coefficient);
+    }
+    if (c !== def) modified = true;
+    const base = sd.originalUnitPrice != null ? sd.originalUnitPrice : sd.unitPrice;
+    const discount = hasDirect ? 1 : (paper ? (paper.discount || 1) : 1);
+    const craftOfSheet = sd.sheetCraftTotal || 0;
+    const price = (base * discount + craftOfSheet) * c;
+    total += price;
+    items.push({ name: sd.paperName, kind: "temp", coeff: c, def, price });
+  });
+  if (!modified) return null;
+  return { kind: "direct", total, incomplete, items };
+}
+
 function saveCurrentQuote() {
   if (!_lastResult) {
     showToast("请先完成有效报价，再保存记录");
@@ -2917,7 +3002,8 @@ function saveCurrentQuote() {
     inputs,
     result: _lastResult,
     ropeName: selectedRope?.name || "",
-    regionName: selectedRegion?.name || ""
+    regionName: selectedRegion?.name || "",
+    override: collectQuoteOverride()
   });
 
   const list = getHistory();
@@ -2941,6 +3027,21 @@ function getHistoryRecordCost(record) {
 }
 
 function getHistoryRecordPrimaryPrice(record) {
+  // v9.6：保存时存在临时修改（临时毛利系数/邮费快速修改/每纸临时直接系数）→ 优先返回修改后价格
+  const override = record?.snapshot?.override;
+  if (override) {
+    let value = null;
+    if (override.kind === "standard") {
+      if (override.price1 != null) value = override.price1;
+      else if (override.price != null) value = override.price;
+      else if (Array.isArray(override.pricesByLevel) && override.pricesByLevel.length) value = override.pricesByLevel[0].price;
+    } else if (override.kind === "direct") {
+      value = override.total;
+    }
+    // 注意：value 为 null 时 Number(null)===0 会被误判为有效价，必须先判空再转数字
+    const overrideNumber = value == null ? null : Number(value);
+    if (overrideNumber != null && Number.isFinite(overrideNumber)) return overrideNumber;
+  }
   const levels = record?.snapshot?.pricesByLevel;
   const value = Array.isArray(levels) && levels.length ? levels[0]?.price : record?.price;
   const number = Number(value);
@@ -3225,6 +3326,47 @@ function renderHistory() {
   });
 }
 
+/**
+ * v9.6：历史详情中的「临时修改」区块 HTML（保存时生效的临时系数 / 邮费快速修改 / 每纸临时直接系数）。
+ */
+function buildOverrideDetailHtml(o) {
+  if (!o) return "";
+  let rows = "";
+  if (o.kind === "standard") {
+    const parts = [];
+    if (o.coeff != null) parts.push(`临时毛利系数 <strong>×${escapeHtml(String(o.coeff))}</strong>`);
+    if (o.newShipping != null) parts.push(`邮费快速修改 <strong>¥ ${formatMoney(o.newShipping)}</strong>`);
+    rows += `<div class="history-override-summary">${parts.join('<span class="override-sep">·</span>')}</div>`;
+    if (o.price != null) {
+      rows += `<div class="history-override-price"><span>修改后报价</span><strong>¥ ${formatMoney(o.price)}</strong></div>`;
+    } else if (o.price1 != null && o.price2 != null) {
+      rows += `<div class="history-override-price"><span>修改后报价（邮费一起乘系数）</span><strong>¥ ${formatMoney(o.price1)}</strong></div>`;
+      rows += `<div class="history-override-price"><span>修改后报价（邮费不乘系数）</span><strong>¥ ${formatMoney(o.price2)}</strong></div>`;
+    } else if (o.newCost != null && Array.isArray(o.pricesByLevel) && o.pricesByLevel.length) {
+      rows += `<div class="history-override-price"><span>修改后成本</span><strong>¥ ${formatMoney(o.newCost)}</strong></div>`;
+      rows += o.pricesByLevel.map(l => `
+        <div class="history-override-price"><span>${escapeHtml(l.levelName || "客户报价")}</span><strong>¥ ${formatMoney(l.price)}</strong></div>`).join("");
+    }
+  } else if (o.kind === "direct") {
+    rows += `<div class="history-override-summary">每纸临时直接系数（保存时生效值）</div>`;
+    rows += '<div class="history-override-items">' + (o.items || []).map(it => {
+      if (it.kind === "batchDirect") {
+        return `<div class="history-override-item"><span>${escapeHtml(it.name || "纸张")}</span><strong>${it.price == null ? "缺价" : "批量直接价 ¥ " + formatMoney(it.price)}</strong></div>`;
+      }
+      if (it.kind === "invalid") {
+        return `<div class="history-override-item"><span>${escapeHtml(it.name || "纸张")}</span><strong class="price-missing">无效系数</strong></div>`;
+      }
+      return `<div class="history-override-item"><span>${escapeHtml(it.name || "纸张")} × ${escapeHtml(String(it.coeff))}</span><strong>${it.price == null ? "缺价" : "¥ " + formatMoney(it.price)}</strong></div>`;
+    }).join("") + '</div>';
+    rows += `<div class="history-override-price total"><span>修改后总价</span><strong>${o.incomplete ? "部分缺价" : "¥ " + formatMoney(o.total)}</strong></div>`;
+  }
+  return `
+    <section class="history-detail-section history-override-section">
+      <h3>临时修改（保存时生效）</h3>
+      ${rows}
+    </section>`;
+}
+
 function showHistoryDetail(recordId) {
   const record = getHistory().find(item => item.id === recordId);
   if (!record || !els.historyDetailDialog || !els.historyDetailContent) return;
@@ -3302,6 +3444,7 @@ function showHistoryDetail(recordId) {
       <h3>保存时客户报价</h3>
       <div class="history-level-list">${levelHtml}</div>
     </section>
+    ${buildOverrideDetailHtml(snapshot.override)}
   `;
 
   if (els.historyDetailLoadBtn) {
