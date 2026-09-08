@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.5.2 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v9.5.3 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -1376,7 +1376,9 @@ function onCalculate() {
             </div>
           </div>
         </td>
-        <td>${s.missing ? '<span class="price-missing">无该批量定价</span>' : '¥ ' + formatMoney(s.baseOriginalUnitPrice)}</td>
+        <td>${s.missing ? '<span class="price-missing">无该批量定价</span>' : (s.areaCoefficient > 1
+          ? '¥ ' + formatMoney(s.baseOriginalUnitPrice) + ' × ' + s.areaCoefficient + ' = <span style="color:var(--brand);font-weight:600;">¥ ' + formatMoney(s.originalUnitPrice) + '</span>'
+          : '¥ ' + formatMoney(s.baseOriginalUnitPrice))}</td>
       </tr>
     `;}).join("");
     // 绑定代码切换按钮事件
