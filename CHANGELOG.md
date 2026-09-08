@@ -1,5 +1,14 @@
 # KOKALabel 报价系统 变更日志
 
+## v9.7.1（2026-09-08）
+
+### 文档全面更新 + 仓库目录整理 + 发版流程固化
+
+- **五文档更新**（AGENTS.md / docs/项目历史与技术总档案.md / docs/HANDOFF-v8.md / docs/项目总结.md / CHANGELOG.md）：全部对齐 v9.7.1 现状——AGENTS 增补仓库改名与直传发版说明、文件地图（assets/、login.html、函数索引新增公共计算函数）；HANDOFF 更新文件结构（补 login.html / auth.js / login.js / wrangler.toml / assets / docs 全列表）、上线流程改为 wrangler 直传、修正过时的「默认分支仍是 main」描述；项目总结新增「十、增量更新（v8.9.0 → v9.7.1）」章节衔接快照；总档案新增「增量记录（v9.5.0–v9.7.1）」大事记速览。
+- **仓库一级目录整理**：站点图标 `favicon.ico` / `favicon.png` / `apple-touch-icon.png` 从根目录下沉至新建的 `assets/`；`index.html` 引用同步改为 `assets/…?v=9.7.1`，`login.html` 补齐此前缺失的 favicon 显式引用。根目录其余文件（`_headers` / `robots.txt` / `wrangler.toml` / `README` / `CHANGELOG` / `AGENTS.md`）按平台与生态惯例必须留根，不动。
+- **误删检查**：`git log --diff-filter=D` 确认本谱系历史上无任何文件删除记录，无过往误删。
+- 版本号同步：全站升至 v9.7.1。
+
 ## v9.7（2026-09-08）
 
 ### 临时修改计算统一单源 + 历史列表事件委托 + 删除记录后统计同步刷新

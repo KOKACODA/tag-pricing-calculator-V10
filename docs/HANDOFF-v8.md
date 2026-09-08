@@ -1,7 +1,7 @@
-# KOKALabel 报价系统 v9.7 — 项目转手文档
+# KOKALabel 报价系统 v9.7.1 — 项目转手文档
 
 > 本文档供新接手的开发者或 AI Agent 快速了解项目全貌与当前状态。
-> 最后更新：2026-09-08 ｜ 当前版本：v9.7（`v8` 分支）
+> 最后更新：2026-09-08 ｜ 当前版本：v9.7.1（`v8` 分支）
 > 技术细节的权威来源是 `docs/项目总结.md`；全量历史 + 技术 + 转手方案见 `docs/项目历史与技术总档案.md`。本文档仅作快速上手索引。
 
 ---
@@ -13,7 +13,7 @@
 | 名称 | KOKALabel 报价系统 |
 | 用途 | 吊牌 / 标签 / 不干胶印刷品报价（纸张 + 工艺 + 吊绳 + 邮费 + 客户等级系数） |
 | 部署 | Cloudflare Pages（项目名 `tag-pricing-calculator-v5`） |
-| 正式地址 | https://tag-pricing-calculator-v5.pages.dev（当前 v9.7） |
+| 正式地址 | https://tag-pricing-calculator-v5.pages.dev（当前 v9.7.1） |
 | GitHub | KOKACODA/tag-pricing-calculator-v5 |
 | 技术栈 | 原生 HTML + CSS + JavaScript（无框架）；SheetJS 本地化于 `js/vendor/xlsx.full.min.js` |
 | 存储 | 浏览器 `localStorage`（键前缀 `tagPricing_`，无后端、无数据库） |
@@ -24,8 +24,8 @@
 
 | 分支 | 版本 | 状态 |
 |---|---|---|
-| `v8` | v9.7 | **当前线上版本** |
-| `main` | v9.7 | 已与 `v8` 同步（v9.5.0 起） |
+| `v8` | v9.7.1 | **当前线上版本** |
+| `main` | v9.7.1 | 已与 `v8` 同步（v9.5.0 起随版同步） |
 
 - v8 谱系来自另一台设备导出的压缩包（`8.5` / `8.6` / `8.8` 三个文件夹），根提交为 `v7.8 baseline`，与 `main` **无共同提交**，是两条独立 git 历史。
 - 生产域名已切换至 v8 分支最新提交；`main` 仅作历史保留，请勿再基于它开发。
@@ -37,22 +37,34 @@
 
 ```
 tag-pricing-calculator-v5/
-├── index.html                      # HTML 骨架 + CSP（约 1000 行）
-├── css/style.css                   # 全部样式（约 2900 行）
+├── index.html                      # HTML 骨架 + CSP（约 1150 行）
+├── login.html                      # 账号登录页（在线部署时启用）
+├── css/style.css                   # 全部样式（约 3250 行）
 ├── js/
-│   ├── data.js                     # 数据配置 + 存储 + 版本迁移（约 10800 行）
-│   ├── app.js                      # 计算 + 渲染 + 交互 + 导入导出（约 4600 行）
+│   ├── data.js                     # 数据配置 + 存储 + 版本迁移（约 9500 行，90% 为静态价格数据）
+│   ├── app.js                      # 计算 + 渲染 + 交互 + 导入导出（约 5200 行）
+│   ├── auth.js                     # 前端账号访问控制（角色门控 / 账号面板）
+│   ├── login.js                    # 登录页脚本
 │   └── vendor/xlsx.full.min.js     # SheetJS（本地化，离线可用）
-├── tests/*.test.mjs                # Node 内置测试（vm 加载纯函数）
+├── assets/                         # 站点图标（favicon / apple-touch-icon）
+├── functions/                      # Cloudflare Pages Functions 后端
+│   ├── _lib.js                     # 共享库（PBKDF2 / 会话 / 角色 / 管理员保护）
+│   └── api/                        # auth/*、admin/users/*、default
+├── wrangler.toml                   # KV 绑定配置（AUTH 命名空间）
+├── tests/*.test.mjs                # Node 内置测试（vm 加载纯函数，6 个文件）
 ├── _headers / robots.txt           # Cloudflare 安全头 / noindex 屏蔽收录
 ├── .gitignore                      # 忽略 node_modules / .wrangler 等
+├── AGENTS.md                       # AI Agent 接手只读入口
 ├── CHANGELOG.md                    # 版本变更日志
 └── docs/
     ├── HANDOFF-v8.md               # 本文档（转手 / 交接）
-    ├── 项目总结.md                 # 完整项目总结（技术细节权威来源）
+    ├── 项目历史与技术总档案.md      # 全量历史 + 技术 + 转手方案（总纲，整理至 v9.4.2）
+    ├── 项目总结.md                 # 完整项目总结（技术细节权威来源，快照 v8.9.0 + 增量节）
     ├── 归档说明-v8.md              # v8 谱系迁移归档
+    ├── 部署日志.md                 # 部署与运维记录（发版先看这里）
     ├── 问题日志.md                 # 已知问题与处理记录
-    └── plans/                      # 设计文档
+    ├── main-branch-summary.md     # main 分支（v7.10 旧谱系）完整历史档案
+    └── plans/                      # 历史设计文档
 ```
 
 ---
@@ -92,7 +104,7 @@ tag-pricing-calculator-v5/
 ### 本地运行
 
 ```bash
-git clone https://github.com/KOKACODA/tag-pricing-calculator-v5.git
+git clone https://github.com/KOKACODA/tag-pricing-calculator-V10.git
 git checkout v8                     # 切到当前线上分支
 python3 -m http.server 8080         # 或直接双击 index.html（离线可用）
 ```
@@ -104,9 +116,11 @@ node --check js/app.js js/data.js   # 语法检查
 node --test tests/*.test.mjs        # 单元测试
 ```
 
-### 上线流程
+### 上线流程（v9.7.1 起变更：Git 自动部署已断）
 
-- 平台为 Cloudflare Pages（项目名 `tag-pricing-calculator-v5`），生产域名已指向 v8 分支最新提交。
+- 平台为 Cloudflare Pages（项目名 `tag-pricing-calculator-v5`），生产域名指向 v8 分支内容。
+- **仓库已改名 `tag-pricing-calculator-V10`，Cloudflare Pages 的 Git 集成随之失效**（推送不再触发自动构建）；恢复自动部署需在 Cloudflare 面板重新绑定新仓库。
+- 当前发版方式：`wrangler pages deploy . --project-name=tag-pricing-calculator-v5 --branch=v8` 直传（项目 `production_branch` 已重设为 `v8`），细节与验证记录见 `docs/部署日志.md`。
 - SheetJS 已本地化，导出 / 导入 Excel 无需联网。
 - 任何修改请同步更新 `CHANGELOG.md` 与本文档的「最后更新」信息。
 
@@ -114,7 +128,7 @@ node --test tests/*.test.mjs        # 单元测试
 
 ## 六、维护注意事项
 
-1. **GitHub 默认分支仍是 `main`（v7.10 旧版）**：受 GitHub Token 权限限制，未能自动切换默认分支。需在仓库 Settings → General → Default branch 手动改为 `v8`，避免新克隆默认拿到旧版。
+1. **GitHub 仓库已改名 `tag-pricing-calculator-V10`**：旧地址自动重定向仍可访问；Cloudflare Pages Git 集成因改名失效，发版走 wrangler 直传（见上文上线流程）。若要恢复自动部署，需在 Cloudflare 面板重新绑定新仓库。
 2. **`account_id` 历史遗留**：早期提交的 `.wrangler/cache/pages.json` 及已删除的 `HANDOFF-v5.md` 含 Cloudflare account_id（`a4fdb…`，项目名 `tag-pricing-calculator-v5`）。当前树已清除，但 git 历史仍保留。该值为半公开标识（非访问令牌）；彻底清除需 `git filter-repo` 改写历史并会破坏全部标签，故未执行。
 3. **文档分工**：技术细节以 `docs/项目总结.md` 为准；问题追踪见 `docs/问题日志.md`；迁移来历见 `docs/归档说明-v8.md`。
 4. **数据迁移**：旧版 localStorage 用户首次加载会自动迁移到 v8 结构（`data.js` 内置幂等 `migrate*` 函数），无需手动重置。

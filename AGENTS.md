@@ -4,12 +4,14 @@
 
 ## 一句话定位
 
-KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v9.7）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
+KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v9.7.1）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
 
 ## 分支真相（先确认，最容易踩坑）
 
-- `v8` = 当前线上版本（v9.7），**一切改动在这里**。
-- `main` = 已与 `v8` 同步（v9.5.0 起）。
+- `v8` = 当前线上版本（v9.7.1），**一切改动在这里**。
+- `main` = 已与 `v8` 同步（v9.5.0 起随版同步）。
+- GitHub 仓库已改名 `tag-pricing-calculator-V10`（旧地址 `tag-pricing-calculator-v5` 自动重定向，仍可访问）。
+- **Git 自动部署已断**（仓库改名导致 Cloudflare Pages Git 集成失效）：发版需 `wrangler pages deploy` 直传，详见 `docs/部署日志.md` 最新条目。
 - 旧 v7.10 谱系（独立 git 历史）经本地备份 tag `archive/v7.10-main` 追溯，完整记录见 `docs/项目历史与技术总档案.md`。
 
 ## 核心数据流（一句话）
@@ -21,14 +23,16 @@ KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HT
 
 | 文件 | 行数 | 何时读 / 怎么读 |
 |---|---|---|
-| `js/data.js` | ~10800 | **90% 是静态价格数据。永不整读**。只看顶部 `DEFAULT_*` 配置区；改价用 grep 定位纸张 id 或简称 |
-| `js/app.js` | ~5100 | 按函数读（见下方函数索引），不要整读 |
+| `js/data.js` | ~9500 | **90% 是静态价格数据。永不整读**。只看顶部 `DEFAULT_*` 配置区；改价用 grep 定位纸张 id 或简称 |
+| `js/app.js` | ~5200 | 按函数读（见下方函数索引），不要整读 |
 | `index.html` | ~1150 | 改页面结构 / 加对话框时读 |
+| `login.html` | ~80 | 登录页（在线部署时启用） |
 | `js/auth.js` | ~230 | 前端账号门控 / 个人主页账号面板；改角色权限时读 |
 | `functions/` | 8 文件 | 后端账号/会话/默认数据 API；改鉴权时读 `_lib.js` 与 `api/` |
-| `css/style.css` | ~2900 | 改样式时才读，通常不动 |
+| `css/style.css` | ~3250 | 改样式时才读，通常不动 |
+| `assets/` | 3 图标 | favicon / apple-touch-icon，无特殊情况不动 |
 | `js/vendor/xlsx.full.min.js` | 内置库 | **永不读**。SheetJS 已本地化，离线可用 |
-| `AGENTS.md` | ~70 | 本文档，接手必读 |
+| `AGENTS.md` | ~75 | 本文档，接手必读 |
 
 ## 常见改动怎么做（省 token 的关键）
 
@@ -42,6 +46,8 @@ KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HT
 ## 函数索引（按需 grep）
 
 - `calculate(inputs)` — 核心计算
+- `computeStandardOverridePrice` / `computeDirectTempTotals` — v9.7 公共计算函数：临时系数/邮费修改与每纸临时系数的价格计算（屏幕渲染与保存记录共用，改计算规则只改这里）
+- `collectQuoteOverride` / `buildQuoteHistoryRecord` — v9.6 保存报价时固化临时修改到 `snapshot.override`
 - `getDirectCoeffsForTier` / `matchSpec` / `calcAreaCoefficient` — 系数与规格匹配
 - `applyDefaultQuoteVisibility` — 报价区显隐控制
 - `openShippingWeightDialog` / `openManualShippingDialog` — 邮费两档对话框
@@ -65,3 +71,4 @@ node --test tests/*.test.mjs        # 单元测试
 
 - 更新 `CHANGELOG.md`（版本号递增，或加「维护」记录）
 - 若文件地图 / 架构有变，同步更新本文件对应段落
+- **发版上线**：Git 自动部署已断（仓库改名），需 `wrangler pages deploy . --project-name=tag-pricing-calculator-v5 --branch=v8` 直传（详见 `docs/部署日志.md`）；推送 GitHub 与部署是两个独立步骤
