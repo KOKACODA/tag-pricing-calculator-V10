@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.7.2 - 数据配置层
+// KOKALabel报价系统 v9.7.3 - 数据配置层
 // ============================================================
 "use strict";
 
@@ -1955,35 +1955,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-1：米兰纹 700克 双面过光油",
     "shortName": "700米兰纹",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -2124,38 +2096,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-2：400克 A级铜版纸 双面过哑胶",
     "shortName": "400铜版纸",
     "discount": 0.91,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000,
-        50000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -2306,38 +2247,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-3：702克 A级铜版纸 双面过哑胶（厚度0.85mm）",
     "shortName": "702铜版纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000,
-        50000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -2488,35 +2398,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-4：700克 A级布纹纸 双面过光油",
     "shortName": "700布纹纸亲成报价",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -2657,35 +2539,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-5：160克半透卡/200克合成纸",
     "shortName": "160半透卡/200克合成纸",
     "discount": 0.75,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -2826,44 +2680,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-6：米白卡 606克",
     "shortName": "606米白卡",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        500,
-        1000,
-        2000,
-        2500,
-        5000,
-        7500,
-        10000,
-        20000,
-        30000,
-        50000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -3034,44 +2851,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-7：500克 白卡纸 正面过哑胶",
     "shortName": "500白卡纸",
     "discount": 0.75,
-    "directCoeff": {
-      "tiers": [
-        500,
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000,
-        30000,
-        50000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -3242,35 +3022,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-8：素棉纸 700克",
     "shortName": "700素棉纸",
     "discount": 0.85,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -3411,32 +3163,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-9：800克 艺术棉卡 含四色彩印",
     "shortName": "800艺术棉卡",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -3564,38 +3291,151 @@ const DEFAULT_PAPER_CONFIG = [
   },
   {
     "id": "paper2_10",
-    "name": "1楼小组-10：白纹卡600/黑卡纸600/牛皮纸600/纹棉纸800",
-    "shortName": "600白纹/600黑卡/600牛皮/800纹棉",
+    "name": "1楼小组-10：白纹卡600/黑卡纸600/牛皮纸600",
+    "shortName": "600白纹/600黑卡/600牛皮",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
+    "batchDirect": null,
+    "priceListId": "priceList1",
+    "specs": [
+      {
+        "code": "002",
+        "maxArea": 1999,
+        "prices": {
+          "1000": 60,
+          "2000": 110,
+          "3000": 155,
+          "4000": 195,
+          "5000": 230,
+          "10000": 437,
+          "20000": 830
+        }
+      },
+      {
+        "code": "003",
+        "maxArea": 3164,
+        "prices": {
+          "1000": 70,
+          "2000": 126,
+          "3000": 182,
+          "4000": 230,
+          "5000": 270,
+          "10000": 513,
+          "20000": 975
+        }
+      },
+      {
+        "code": "004",
+        "maxArea": 3999,
+        "prices": {
+          "1000": 80,
+          "2000": 145,
+          "3000": 208,
+          "4000": 265,
+          "5000": 310,
+          "10000": 589,
+          "20000": 1120
+        }
+      },
+      {
+        "code": "005",
+        "maxArea": 5500,
+        "prices": {
+          "1000": 95,
+          "2000": 170,
+          "3000": 245,
+          "4000": 313,
+          "5000": 370,
+          "10000": 703,
+          "20000": 1335
+        }
+      },
+      {
+        "code": "055",
+        "maxArea": 6000,
+        "prices": {
+          "1000": 105,
+          "2000": 190,
+          "3000": 273,
+          "4000": 345,
+          "5000": 410,
+          "10000": 779,
+          "20000": 1480
+        }
+      },
+      {
+        "code": "006",
+        "maxArea": 6264,
+        "prices": {
+          "1000": 115,
+          "2000": 205,
+          "3000": 300,
+          "4000": 380,
+          "5000": 450,
+          "10000": 855,
+          "20000": 1625
+        }
+      },
+      {
+        "code": "007",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 145,
+          "2000": 260,
+          "3000": 375,
+          "4000": 475,
+          "5000": 560,
+          "10000": 1064,
+          "20000": 2022
+        }
+      },
+      {
+        "code": "008",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 145,
+          "2000": 260,
+          "3000": 375,
+          "4000": 475,
+          "5000": 560,
+          "10000": 1064,
+          "20000": 2022
+        }
+      },
+      {
+        "code": "009",
+        "maxArea": 9064,
+        "prices": {
+          "1000": 170,
+          "2000": 306,
+          "3000": 440,
+          "4000": 550,
+          "5000": 660,
+          "10000": 1254,
+          "20000": 2383
+        }
+      },
+      {
+        "code": "100",
+        "maxArea": 10000,
+        "prices": {
+          "1000": 190,
+          "2000": 340,
+          "3000": 495,
+          "4000": 620,
+          "5000": 740,
+          "10000": 1406,
+          "20000": 2672
+        }
+      }
+    ]
+  },
+  {
+    "id": "paper2_33",
+    "name": "1楼小组-33：纹棉纸800",
+    "shortName": "800纹棉",
+    "discount": 1.2,
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -3736,35 +3576,148 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-11：米白卡400/牛皮纸350/大地纸200/木香纸400/牛油纸160/磨砂片25C",
     "shortName": "400米白/350牛皮/200大地/400木香/160牛油/25c磨砂片",
     "discount": 0.75,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
+    "batchDirect": null,
+    "priceListId": "priceList1",
+    "specs": [
+      {
+        "code": "002",
+        "maxArea": 1999,
+        "prices": {
+          "1000": 40,
+          "2000": 72,
+          "3000": 105,
+          "4000": 132,
+          "5000": 160,
+          "10000": 305,
+          "20000": 578
+        }
+      },
+      {
+        "code": "003",
+        "maxArea": 3164,
+        "prices": {
+          "1000": 50,
+          "2000": 90,
+          "3000": 130,
+          "4000": 165,
+          "5000": 200,
+          "10000": 380,
+          "20000": 720
+        }
+      },
+      {
+        "code": "004",
+        "maxArea": 3999,
+        "prices": {
+          "1000": 58,
+          "2000": 105,
+          "3000": 150,
+          "4000": 190,
+          "5000": 230,
+          "10000": 437,
+          "20000": 830
+        }
+      },
+      {
+        "code": "005",
+        "maxArea": 5500,
+        "prices": {
+          "1000": 65,
+          "2000": 116,
+          "3000": 170,
+          "4000": 215,
+          "5000": 260,
+          "10000": 494,
+          "20000": 938
+        }
+      },
+      {
+        "code": "055",
+        "maxArea": 6000,
+        "prices": {
+          "1000": 75,
+          "2000": 135,
+          "3000": 195,
+          "4000": 248,
+          "5000": 300,
+          "10000": 570,
+          "20000": 1083
+        }
+      },
+      {
+        "code": "006",
+        "maxArea": 6264,
+        "prices": {
+          "1000": 85,
+          "2000": 153,
+          "3000": 220,
+          "4000": 280,
+          "5000": 340,
+          "10000": 646,
+          "20000": 1228
+        }
+      },
+      {
+        "code": "007",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 95,
+          "2000": 170,
+          "3000": 246,
+          "4000": 313,
+          "5000": 380,
+          "10000": 720,
+          "20000": 1368
+        }
+      },
+      {
+        "code": "008",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 95,
+          "2000": 170,
+          "3000": 246,
+          "4000": 313,
+          "5000": 380,
+          "10000": 720,
+          "20000": 1368
+        }
+      },
+      {
+        "code": "009",
+        "maxArea": 9064,
+        "prices": {
+          "1000": 110,
+          "2000": 198,
+          "3000": 285,
+          "4000": 363,
+          "5000": 450,
+          "10000": 855,
+          "20000": 1625
+        }
+      },
+      {
+        "code": "100",
+        "maxArea": 10000,
+        "prices": {
+          "1000": 120,
+          "2000": 216,
+          "3000": 310,
+          "4000": 400,
+          "5000": 500,
+          "10000": 950,
+          "20000": 1805
+        }
+      }
+    ]
+  },
+  {
+    "id": "paper2_29",
+    "name": "1楼小组-29：木香纸400/牛油纸160/磨砂片25C",
+    "shortName": "400木香/160牛油/25c磨砂片",
+    "discount": 1.2,
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -3905,32 +3858,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-12：棉麻布 40C 米白色",
     "shortName": "40C棉麻布",
     "discount": 0.75,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -4061,35 +3989,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-13：木香纸 800克 含4色彩印",
     "shortName": "800木香纸",
     "discount": 0.75,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -4230,32 +4130,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-14：雅莲纹 900克 含4色彩印 双面过光油",
     "shortName": "900雅莲纹",
     "discount": 0.7,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -4383,38 +4258,344 @@ const DEFAULT_PAPER_CONFIG = [
   },
   {
     "id": "paper2_15",
-    "name": "1楼小组-15：手柔皮200/米兰卡200/闪银卡180/云彩纸200",
-    "shortName": "200手柔皮/200米兰/180闪银/200云彩",
+    "name": "1楼小组-15：手柔皮200/米兰卡200",
+    "shortName": "200手柔皮/200米兰",
     "discount": 0.85,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
+    "batchDirect": null,
+    "priceListId": "priceList1",
+    "specs": [
+      {
+        "code": "005",
+        "maxArea": 5500,
+        "prices": {
+          "1000": 78,
+          "2000": 140,
+          "3000": 205,
+          "4000": 260,
+          "5000": 310,
+          "10000": 593,
+          "20000": 1125
+        }
+      },
+      {
+        "code": "055",
+        "maxArea": 6000,
+        "prices": {
+          "1000": 90,
+          "2000": 162,
+          "3000": 235,
+          "4000": 298,
+          "5000": 360,
+          "10000": 685,
+          "20000": 1300
+        }
+      },
+      {
+        "code": "006",
+        "maxArea": 6264,
+        "prices": {
+          "1000": 102,
+          "2000": 183,
+          "3000": 265,
+          "4000": 336,
+          "5000": 410,
+          "10000": 775,
+          "20000": 1470
+        }
+      },
+      {
+        "code": "007",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 115,
+          "2000": 205,
+          "3000": 295,
+          "4000": 375,
+          "5000": 456,
+          "10000": 865,
+          "20000": 1640
+        }
+      },
+      {
+        "code": "008",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 115,
+          "2000": 205,
+          "3000": 295,
+          "4000": 375,
+          "5000": 456,
+          "10000": 865,
+          "20000": 1640
+        }
+      },
+      {
+        "code": "009",
+        "maxArea": 9064,
+        "prices": {
+          "1000": 130,
+          "2000": 238,
+          "3000": 243,
+          "4000": 435,
+          "5000": 540,
+          "10000": 1026,
+          "20000": 1950
+        }
+      },
+      {
+        "code": "100",
+        "maxArea": 10000,
+        "prices": {
+          "1000": 145,
+          "2000": 260,
+          "3000": 372,
+          "4000": 480,
+          "5000": 600,
+          "10000": 1140,
+          "20000": 2166
+        }
+      },
+      {
+        "code": "120",
+        "maxArea": 12000,
+        "prices": {
+          "1000": 170,
+          "2000": 302,
+          "3000": 438,
+          "4000": 550,
+          "5000": 670,
+          "10000": 1200,
+          "20000": null
+        }
+      },
+      {
+        "code": "140",
+        "maxArea": 14000,
+        "prices": {
+          "1000": 190,
+          "2000": 345,
+          "3000": 500,
+          "4000": 636,
+          "5000": 768,
+          "10000": 1380,
+          "20000": null
+        }
+      },
+      {
+        "code": "160",
+        "maxArea": 16000,
+        "prices": {
+          "1000": 215,
+          "2000": 385,
+          "3000": 560,
+          "4000": 720,
+          "5000": 865,
+          "10000": 1500,
+          "20000": null
+        }
+      },
+      {
+        "code": "180",
+        "maxArea": 18000,
+        "prices": {
+          "1000": 240,
+          "2000": 430,
+          "3000": 625,
+          "4000": 792,
+          "5000": 860,
+          "10000": 1620,
+          "20000": null
+        }
+      },
+      {
+        "code": "200",
+        "maxArea": 20000,
+        "prices": {
+          "1000": 265,
+          "2000": 475,
+          "3000": 686,
+          "4000": 876,
+          "5000": 1056,
+          "10000": 1800,
+          "20000": null
+        }
+      }
+    ]
+  },
+  {
+    "id": "paper2_32",
+    "name": "1楼小组-32：闪银卡180",
+    "shortName": "180闪银",
+    "discount": 1.5,
+    "directCoeff": null,
+    "batchDirect": null,
+    "priceListId": "priceList1",
+    "specs": [
+      {
+        "code": "005",
+        "maxArea": 5500,
+        "prices": {
+          "1000": 78,
+          "2000": 140,
+          "3000": 205,
+          "4000": 260,
+          "5000": 310,
+          "10000": 593,
+          "20000": 1125
+        }
+      },
+      {
+        "code": "055",
+        "maxArea": 6000,
+        "prices": {
+          "1000": 90,
+          "2000": 162,
+          "3000": 235,
+          "4000": 298,
+          "5000": 360,
+          "10000": 685,
+          "20000": 1300
+        }
+      },
+      {
+        "code": "006",
+        "maxArea": 6264,
+        "prices": {
+          "1000": 102,
+          "2000": 183,
+          "3000": 265,
+          "4000": 336,
+          "5000": 410,
+          "10000": 775,
+          "20000": 1470
+        }
+      },
+      {
+        "code": "007",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 115,
+          "2000": 205,
+          "3000": 295,
+          "4000": 375,
+          "5000": 456,
+          "10000": 865,
+          "20000": 1640
+        }
+      },
+      {
+        "code": "008",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 115,
+          "2000": 205,
+          "3000": 295,
+          "4000": 375,
+          "5000": 456,
+          "10000": 865,
+          "20000": 1640
+        }
+      },
+      {
+        "code": "009",
+        "maxArea": 9064,
+        "prices": {
+          "1000": 130,
+          "2000": 238,
+          "3000": 243,
+          "4000": 435,
+          "5000": 540,
+          "10000": 1026,
+          "20000": 1950
+        }
+      },
+      {
+        "code": "100",
+        "maxArea": 10000,
+        "prices": {
+          "1000": 145,
+          "2000": 260,
+          "3000": 372,
+          "4000": 480,
+          "5000": 600,
+          "10000": 1140,
+          "20000": 2166
+        }
+      },
+      {
+        "code": "120",
+        "maxArea": 12000,
+        "prices": {
+          "1000": 170,
+          "2000": 302,
+          "3000": 438,
+          "4000": 550,
+          "5000": 670,
+          "10000": 1200,
+          "20000": null
+        }
+      },
+      {
+        "code": "140",
+        "maxArea": 14000,
+        "prices": {
+          "1000": 190,
+          "2000": 345,
+          "3000": 500,
+          "4000": 636,
+          "5000": 768,
+          "10000": 1380,
+          "20000": null
+        }
+      },
+      {
+        "code": "160",
+        "maxArea": 16000,
+        "prices": {
+          "1000": 215,
+          "2000": 385,
+          "3000": 560,
+          "4000": 720,
+          "5000": 865,
+          "10000": 1500,
+          "20000": null
+        }
+      },
+      {
+        "code": "180",
+        "maxArea": 18000,
+        "prices": {
+          "1000": 240,
+          "2000": 430,
+          "3000": 625,
+          "4000": 792,
+          "5000": 860,
+          "10000": 1620,
+          "20000": null
+        }
+      },
+      {
+        "code": "200",
+        "maxArea": 20000,
+        "prices": {
+          "1000": 265,
+          "2000": 475,
+          "3000": 686,
+          "4000": 876,
+          "5000": 1056,
+          "10000": 1800,
+          "20000": null
+        }
+      }
+    ]
+  },
+  {
+    "id": "paper2_31",
+    "name": "1楼小组-31：云彩纸200",
+    "shortName": "200云彩",
+    "discount": 1,
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -4581,35 +4762,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-16：亮黑卡800/墨绿卡700",
     "shortName": "800亮黑卡/700墨绿卡",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -4750,38 +4903,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-17：350克 A级铜版纸 双面过哑胶（厚度0.38mm）",
     "shortName": "350铜版纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        500,
-        1000,
-        2000,
-        2500,
-        5000,
-        10000,
-        20000,
-        50000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -4932,38 +5054,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-18：700克 A级铜版纸 双面过哑胶（厚度0.88mm）",
     "shortName": "700铜版纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000,
-        50000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -5111,38 +5202,151 @@ const DEFAULT_PAPER_CONFIG = [
   },
   {
     "id": "paper2_19",
-    "name": "1楼小组-19：白纹卡600/黑卡纸600/牛皮纸600/木香纸800/米白卡600/纹棉纸800",
-    "shortName": "600白纹/600黑卡/600牛皮/800木香/600米白/800纹棉",
+    "name": "1楼小组-19：白纹卡600/黑卡纸600/牛皮纸600/米白卡600",
+    "shortName": "600白纹/600黑卡/600牛皮/600米白",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
+    "batchDirect": null,
+    "priceListId": "priceList1",
+    "specs": [
+      {
+        "code": "002",
+        "maxArea": 1999,
+        "prices": {
+          "1000": 60,
+          "2000": 110,
+          "3000": 155,
+          "4000": 195,
+          "5000": 230,
+          "10000": 437,
+          "20000": 830
+        }
+      },
+      {
+        "code": "003",
+        "maxArea": 3164,
+        "prices": {
+          "1000": 70,
+          "2000": 126,
+          "3000": 182,
+          "4000": 230,
+          "5000": 270,
+          "10000": 513,
+          "20000": 975
+        }
+      },
+      {
+        "code": "004",
+        "maxArea": 3999,
+        "prices": {
+          "1000": 80,
+          "2000": 145,
+          "3000": 208,
+          "4000": 265,
+          "5000": 310,
+          "10000": 589,
+          "20000": 1120
+        }
+      },
+      {
+        "code": "005",
+        "maxArea": 5500,
+        "prices": {
+          "1000": 95,
+          "2000": 170,
+          "3000": 245,
+          "4000": 313,
+          "5000": 370,
+          "10000": 703,
+          "20000": 1335
+        }
+      },
+      {
+        "code": "055",
+        "maxArea": 6000,
+        "prices": {
+          "1000": 105,
+          "2000": 190,
+          "3000": 273,
+          "4000": 345,
+          "5000": 410,
+          "10000": 779,
+          "20000": 1480
+        }
+      },
+      {
+        "code": "006",
+        "maxArea": 6264,
+        "prices": {
+          "1000": 115,
+          "2000": 205,
+          "3000": 300,
+          "4000": 380,
+          "5000": 450,
+          "10000": 855,
+          "20000": 1625
+        }
+      },
+      {
+        "code": "007",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 145,
+          "2000": 260,
+          "3000": 375,
+          "4000": 475,
+          "5000": 560,
+          "10000": 1064,
+          "20000": 2022
+        }
+      },
+      {
+        "code": "008",
+        "maxArea": 7999,
+        "prices": {
+          "1000": 145,
+          "2000": 260,
+          "3000": 375,
+          "4000": 475,
+          "5000": 560,
+          "10000": 1064,
+          "20000": 2022
+        }
+      },
+      {
+        "code": "009",
+        "maxArea": 9064,
+        "prices": {
+          "1000": 170,
+          "2000": 306,
+          "3000": 440,
+          "4000": 550,
+          "5000": 660,
+          "10000": 1254,
+          "20000": 2383
+        }
+      },
+      {
+        "code": "100",
+        "maxArea": 10000,
+        "prices": {
+          "1000": 190,
+          "2000": 340,
+          "3000": 495,
+          "4000": 620,
+          "5000": 740,
+          "10000": 1406,
+          "20000": 2672
+        }
+      }
+    ]
+  },
+  {
+    "id": "paper2_34",
+    "name": "1楼小组-34：木香纸800",
+    "shortName": "800木香",
+    "discount": 1.5,
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -5283,35 +5487,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-20：700克 A级布纹纸 双面过光油（厚度0.85mm）",
     "shortName": "700布纹纸海洋厂报价",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -5452,35 +5628,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-21：200克 合成纸 撕不烂",
     "shortName": "200合成纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -5621,44 +5769,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-22：900克 A级铜版纸 双面过哑胶（厚度1.05mm）",
     "shortName": "900铜版纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000,
-        30000,
-        50000,
-        100000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -5829,35 +5940,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-23：600克 A级牛皮纸 双面过哑胶（厚度0.80mm）",
     "shortName": "600牛皮纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -5998,35 +6081,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-24：85C A级白卡纸 双面过光胶（厚度0.95mm）",
     "shortName": "85C白卡纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -6167,35 +6222,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-25：双铜纸 200克（厚度0.22mm）",
     "shortName": "200双铜纸",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -6414,35 +6441,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-26：厚胶带 200克（厚度0.20mm）含正面4色彩印 背面黑油墨",
     "shortName": "200厚胶带",
     "discount": 0.8,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -6609,35 +6608,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-27：巴黎白300/160克彩透卡",
     "shortName": "巴黎白彩透卡",
     "discount": 0.8,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000,
-        20000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -6843,32 +6814,7 @@ const DEFAULT_PAPER_CONFIG = [
     "name": "1楼小组-28：900克 白金卡（独家款）",
     "shortName": "900白金卡",
     "discount": 1,
-    "directCoeff": {
-      "tiers": [
-        1000,
-        2000,
-        3000,
-        4000,
-        5000,
-        10000
-      ],
-      "max": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ],
-      "min": [
-        null,
-        null,
-        null,
-        null,
-        null,
-        null
-      ]
-    },
+    "directCoeff": null,
     "batchDirect": null,
     "priceListId": "priceList1",
     "specs": [
@@ -6994,6 +6940,7 @@ const DEFAULT_PAPER_CONFIG = [
       }
     ]
   }
+
 ];
 
 const DEFAULT_CRAFT_CONFIG = {
@@ -8164,6 +8111,99 @@ const DEFAULT_CRAFT_CONFIG = {
       }
     }
   ],
+  "paper2_33": [
+    {
+      "id": "craft2_33_1",
+      "name": "烫金 小面积（单面）",
+      "prices": {
+        "1000": 50,
+        "2000": 60,
+        "3000": 70,
+        "4000": 80,
+        "5000": 90,
+        "10000": 170,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_33_2",
+      "name": "烫金 小面积（双面）",
+      "prices": {
+        "1000": 70,
+        "2000": 80,
+        "3000": 90,
+        "4000": 100,
+        "5000": 120,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_33_3",
+      "name": "凹凸",
+      "prices": {
+        "1000": 80,
+        "2000": 90,
+        "3000": 100,
+        "4000": 110,
+        "5000": 120,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_33_4",
+      "name": "鸡眼",
+      "prices": {
+        "1000": 40,
+        "2000": 60,
+        "3000": 90,
+        "4000": 120,
+        "5000": 150,
+        "10000": 300,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_33_5",
+      "name": "深凹烫金 无色压凹（单面）",
+      "prices": {
+        "1000": 80,
+        "2000": 90,
+        "3000": 100,
+        "4000": 110,
+        "5000": 120,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_33_6",
+      "name": "丝印白（单面）",
+      "prices": {
+        "1000": 30,
+        "2000": 40,
+        "3000": 50,
+        "4000": 60,
+        "5000": 70,
+        "10000": 130,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_33_7",
+      "name": "丝印白（双面）",
+      "prices": {
+        "1000": 50,
+        "2000": 60,
+        "3000": 70,
+        "4000": 80,
+        "5000": 90,
+        "10000": 160,
+        "20000": null
+      }
+    }
+  ],
   "paper2_11": [
     {
       "id": "craft2_11_1",
@@ -8219,6 +8259,73 @@ const DEFAULT_CRAFT_CONFIG = {
     },
     {
       "id": "craft2_11_5",
+      "name": "鸡眼（对折两张）",
+      "prices": {
+        "1000": 60,
+        "2000": 120,
+        "3000": 180,
+        "4000": 240,
+        "5000": 300,
+        "10000": 550,
+        "20000": null
+      }
+    }
+  ],
+  "paper2_29": [
+    {
+      "id": "craft2_29_1",
+      "name": "烫金（单面）",
+      "prices": {
+        "1000": 50,
+        "2000": 60,
+        "3000": 70,
+        "4000": 80,
+        "5000": 90,
+        "10000": 170,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_29_2",
+      "name": "烫金（双面）",
+      "prices": {
+        "1000": 70,
+        "2000": 80,
+        "3000": 90,
+        "4000": 100,
+        "5000": 120,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_29_3",
+      "name": "PVC 4色彩印（磨砂片）",
+      "prices": {
+        "1000": 450,
+        "2000": 480,
+        "3000": 500,
+        "4000": 520,
+        "5000": 550,
+        "10000": 650,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_29_4",
+      "name": "过白或黑UV油（磨砂片）",
+      "prices": {
+        "1000": 90,
+        "2000": 100,
+        "3000": 110,
+        "4000": 120,
+        "5000": 150,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_29_5",
       "name": "鸡眼（对折两张）",
       "prices": {
         "1000": 60,
@@ -8352,6 +8459,36 @@ const DEFAULT_CRAFT_CONFIG = {
   "paper2_15": [
     {
       "id": "craft2_15_1",
+      "name": "压凹（单面）",
+      "prices": {
+        "1000": 50,
+        "2000": 60,
+        "3000": 70,
+        "4000": 80,
+        "5000": 90,
+        "10000": 170,
+        "20000": null
+      }
+    }
+  ],
+  "paper2_32": [
+    {
+      "id": "craft2_32_1",
+      "name": "压凹（单面）",
+      "prices": {
+        "1000": 50,
+        "2000": 60,
+        "3000": 70,
+        "4000": 80,
+        "5000": 90,
+        "10000": 170,
+        "20000": null
+      }
+    }
+  ],
+  "paper2_31": [
+    {
+      "id": "craft2_31_1",
       "name": "压凹（单面）",
       "prices": {
         "1000": 50,
@@ -8649,6 +8786,138 @@ const DEFAULT_CRAFT_CONFIG = {
     },
     {
       "id": "craft2_19_10",
+      "name": "黑卡纸UV（双面）",
+      "prices": {
+        "1000": 80,
+        "2000": 100,
+        "3000": 110,
+        "4000": 120,
+        "5000": 130,
+        "10000": 220,
+        "20000": null
+      }
+    }
+  ],
+  "paper2_34": [
+    {
+      "id": "craft2_34_1",
+      "name": "烫金 小面积（单面）",
+      "prices": {
+        "1000": 50,
+        "2000": 60,
+        "3000": 70,
+        "4000": 80,
+        "5000": 90,
+        "10000": 170,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_2",
+      "name": "烫金 小面积（双面）",
+      "prices": {
+        "1000": 70,
+        "2000": 80,
+        "3000": 90,
+        "4000": 100,
+        "5000": 120,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_3",
+      "name": "凹凸",
+      "prices": {
+        "1000": 80,
+        "2000": 90,
+        "3000": 100,
+        "4000": 110,
+        "5000": 120,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_4",
+      "name": "鸡眼",
+      "prices": {
+        "1000": 40,
+        "2000": 60,
+        "3000": 90,
+        "4000": 120,
+        "5000": 150,
+        "10000": 300,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_5",
+      "name": "深凹烫金 无色压凹（单面）",
+      "prices": {
+        "1000": 80,
+        "2000": 90,
+        "3000": 100,
+        "4000": 110,
+        "5000": 120,
+        "10000": 230,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_6",
+      "name": "无色压凹 米白卡特价（单面）",
+      "prices": {
+        "1000": 30,
+        "2000": 40,
+        "3000": 50,
+        "4000": 60,
+        "5000": 70,
+        "10000": 130,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_7",
+      "name": "丝印白（单面）",
+      "prices": {
+        "1000": 30,
+        "2000": 40,
+        "3000": 50,
+        "4000": 60,
+        "5000": 70,
+        "10000": 130,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_8",
+      "name": "丝印白（双面）",
+      "prices": {
+        "1000": 50,
+        "2000": 60,
+        "3000": 70,
+        "4000": 80,
+        "5000": 90,
+        "10000": 160,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_9",
+      "name": "黑卡纸UV（单面）",
+      "prices": {
+        "1000": 70,
+        "2000": 80,
+        "3000": 90,
+        "4000": 100,
+        "5000": 120,
+        "10000": 200,
+        "20000": null
+      }
+    },
+    {
+      "id": "craft2_34_10",
       "name": "黑卡纸UV（双面）",
       "prices": {
         "1000": 80,
@@ -9026,6 +9295,7 @@ const DEFAULT_CRAFT_CONFIG = {
       }
     }
   ]
+
 };
 const DEFAULT_ROPE_CONFIG = [
   { id: "rope0", name: "不加吊绳", prices: { 500: 0, 1000: 0, 2000: 0, 3000: 0, 5000: 0 } },
@@ -9188,6 +9458,21 @@ function loadFromStorage(key, defaultValue) {
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+}
+
+// dataVersion 语义化比较（形如 "9.7.3"）：a < b 返回 -1，相等 0，a > b 返回 1；空串视为最旧。
+// 迁移守卫必须用本函数而非 === 判断，否则高版本用户每次加载都会重跑低版本迁移（v8.4 曾因此抹掉 3楼用户改价）。
+function compareDataVersion(a, b) {
+  if (a === b) return 0;
+  const pa = String(a || "").split(".").map(n => parseInt(n, 10) || 0);
+  const pb = String(b || "").split(".").map(n => parseInt(n, 10) || 0);
+  const len = Math.max(pa.length, pb.length);
+  for (let i = 0; i < len; i++) {
+    const x = pa[i] || 0;
+    const y = pb[i] || 0;
+    if (x !== y) return x < y ? -1 : 1;
+  }
+  return 0;
 }
 
 
@@ -9397,7 +9682,7 @@ const DIRECT_COEFF_LEVELS = DEFAULT_DIRECT_COEFF_LEVELS.map(l => ({ ...l }));
 // v8.4 迁移：用纠正版 Excel（KOKALabel1楼.xlsx / KOKALabel3楼.xlsx）覆盖纸张与工艺为最新默认数据
 (function migrateV8_4CorrectData() {
   const dataVersion = loadFromStorage("dataVersion", "");
-  if (dataVersion === "8.4") return;
+  if (compareDataVersion(dataVersion, "8.4") >= 0) return; // 已达 8.4 及以上的用户不重跑（避免抹掉后续版本保留的用户改价）
 
   PAPER_CONFIG = DEFAULT_PAPER_CONFIG.map(p => JSON.parse(JSON.stringify(p)));
   saveToStorage("paperConfig", PAPER_CONFIG);
@@ -9415,7 +9700,7 @@ const DIRECT_COEFF_LEVELS = DEFAULT_DIRECT_COEFF_LEVELS.map(l => ({ ...l }));
 // v9.0.1：最新附件为 28 个报价组（KOKALabel1楼_20260904_1531(1).xlsx）
 (function migrateV9ReplaceFloor1() {
   const dataVersion = loadFromStorage("dataVersion", "");
-  if (dataVersion === "9.0.1") return;
+  if (compareDataVersion(dataVersion, "9.0.1") >= 0) return;
 
   // 3楼 纸 id（paper1~paper10）
   const floor3Ids = new Set(DEFAULT_PAPER_CONFIG.filter(p => p.priceListId === "priceList2").map(p => p.id));
@@ -9447,6 +9732,45 @@ const DIRECT_COEFF_LEVELS = DEFAULT_DIRECT_COEFF_LEVELS.map(l => ({ ...l }));
 
   saveToStorage("dataVersion", "9.0.1");
   console.info("[v9.0.1] 已用最新 Excel 替换 1楼报价表（28 组），3楼保留");
+})();
+
+// v9.7.3 迁移：用最新 Excel（KOKALabel1楼_20260908_2227.xlsx，33 组）替换 1楼报价表，
+// 保留 3楼（含用户改价）。与 v9.0.1 相比：合并纸拆分（600白纹系/手柔皮系等）+ 新增 5 组（85C白卡纸/200双铜纸/200厚胶带/巴黎白彩透卡/900白金卡为新序号位），
+// 1楼直接系数改为显式 null（原 max/min 全 null 的空壳占位，导出导入均不可用）。
+(function migrateV9_7_3ReplaceFloor1() {
+  const dataVersion = loadFromStorage("dataVersion", "");
+  if (compareDataVersion(dataVersion, "9.7.3") >= 0) return;
+
+  // 3楼 纸 id（paper1~paper10）
+  const floor3Ids = new Set(DEFAULT_PAPER_CONFIG.filter(p => p.priceListId === "priceList2").map(p => p.id));
+
+  // 纸张：保留 localStorage 中的 3楼（含用户改价），1楼 用新默认报价组
+  const storedPapers = loadFromStorage("paperConfig", null);
+  if (Array.isArray(storedPapers) && storedPapers.length) {
+    const keptFloor3 = storedPapers.filter(p => floor3Ids.has(p.id));
+    const newFloor1 = DEFAULT_PAPER_CONFIG.filter(p => !floor3Ids.has(p.id)).map(p => JSON.parse(JSON.stringify(p)));
+    PAPER_CONFIG = keptFloor3.concat(newFloor1);
+  } else {
+    PAPER_CONFIG = DEFAULT_PAPER_CONFIG.map(p => JSON.parse(JSON.stringify(p)));
+  }
+  saveToStorage("paperConfig", PAPER_CONFIG);
+
+  // 工艺：保留 3楼 key，1楼（新 paper2_x）按新默认重建
+  const storedCrafts = loadFromStorage("craftConfig", null);
+  if (storedCrafts && typeof storedCrafts === "object") {
+    const kept = {};
+    Object.keys(storedCrafts).forEach(k => { if (floor3Ids.has(k)) kept[k] = storedCrafts[k]; });
+    Object.keys(DEFAULT_CRAFT_CONFIG).forEach(k => {
+      if (!floor3Ids.has(k)) kept[k] = DEFAULT_CRAFT_CONFIG[k].map(c => ({ ...c, prices: { ...c.prices } }));
+    });
+    CRAFT_CONFIG = kept;
+  } else {
+    CRAFT_CONFIG = JSON.parse(JSON.stringify(DEFAULT_CRAFT_CONFIG));
+  }
+  saveToStorage("craftConfig", CRAFT_CONFIG);
+
+  saveToStorage("dataVersion", "9.7.3");
+  console.info("[v9.7.3] 已用最新 Excel 替换 1楼报价表（33 组），3楼保留");
 })();
 
 let APP_PROFILE = loadFromStorage("appProfile", {
