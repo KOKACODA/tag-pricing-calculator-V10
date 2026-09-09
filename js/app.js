@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.7.3 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v9.8.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -874,6 +874,16 @@ const els = {
   historyTable: document.getElementById("historyTable"),
   historyEmpty: document.getElementById("historyEmpty"),
   clearHistoryBtn: document.getElementById("clearHistoryBtn"),
+  // v9.8.0：在线修改（数据管理第 3 个标签页）
+  onlineLockNotice: document.getElementById("onlineLockNotice"),
+  onlineManagerRoot: document.getElementById("onlineManagerRoot"),
+  onlineGroupsWrap: document.getElementById("onlineGroupsWrap"),
+  onlineAddGroupBtn: document.getElementById("onlineAddGroupBtn"),
+  onlineTplPriceList: document.getElementById("onlineTplPriceList"),
+  onlineExportTplBtn: document.getElementById("onlineExportTplBtn"),
+  onlineImportTplBtn: document.getElementById("onlineImportTplBtn"),
+  onlineImportTplFile: document.getElementById("onlineImportTplFile"),
+  onlineTplStatus: document.getElementById("onlineTplStatus"),
   quoteCustomerName: document.getElementById("quoteCustomerName"),
   quoteOrderNote: document.getElementById("quoteOrderNote"),
   saveQuoteBtn: document.getElementById("saveQuoteBtn"),
@@ -2627,13 +2637,14 @@ function resetToDefaults() {
   const confirmMsg = "将清空以下本地修改并恢复出厂默认：\n\n• 报价表组（恢复为默认 1楼/3楼 报价表）\n• 纸张配置（44 张）\n• 工艺配置（含 烫金/UV/鸡眼/凹凸 等）\n• 吊绳配置\n• 邮费配置\n• 客户等级\n\n报价历史与本地快照不会被删除。\n\n确定继续？";
   if (!confirm(confirmMsg)) return;
 
-  const keysToReset = ["paperConfig", "craftConfig", "ropeConfig", "shippingConfig", "customerLevels", "priceLists", "currentPriceListId"];
+  const keysToReset = ["paperConfig", "craftConfig", "ropeConfig", "shippingConfig", "customerLevels", "priceLists", "priceListGroups", "currentPriceListId"];
   keysToReset.forEach(k => {
     try { localStorage.removeItem("tagPricing_" + k); } catch (e) { /* 忽略 */ }
   });
 
   // 重新从 DEFAULT 派生（深拷贝，避免后续修改污染源对象）
   PRICE_LISTS = DEFAULT_PRICE_LISTS.map(p => ({ ...p }));
+  PRICE_LIST_GROUPS = DEFAULT_PRICE_LIST_GROUPS.map(g => ({ ...g })); // v9.8.0：组配置同步重置
   CURRENT_PRICE_LIST_ID = "priceList1";
   PAPER_CONFIG = DEFAULT_PAPER_CONFIG.map(p => ({
     ...p,
@@ -2670,7 +2681,7 @@ function resetAllLocalSettings() {
   if (!confirm(confirmMsg)) return;
 
   // 清除所有本地配置 key（保留 history 和 snapshots）
-  const keysToWipe = ["paperConfig", "craftConfig", "ropeConfig", "shippingConfig", "customerLevels", "appProfile", "priceLists", "currentPriceListId"];
+  const keysToWipe = ["paperConfig", "craftConfig", "ropeConfig", "shippingConfig", "customerLevels", "appProfile", "priceLists", "priceListGroups", "currentPriceListId"];
   keysToWipe.forEach(k => {
     try { localStorage.removeItem("tagPricing_" + k); } catch (e) { /* 忽略 */ }
   });
@@ -2689,7 +2700,7 @@ function resetAllAndClearCache() {
 
   const keysToWipe = [
     "paperConfig", "craftConfig", "ropeConfig", "shippingConfig",
-    "customerLevels", "appProfile", "priceLists", "currentPriceListId",
+    "customerLevels", "appProfile", "priceLists", "priceListGroups", "currentPriceListId",
     "history", "snapshots"
   ];
   keysToWipe.forEach(k => {
@@ -2807,6 +2818,224 @@ function switchTab(tabName) {
   els.tabs.forEach(t => t.classList.toggle("active", t.dataset.tab === tabName));
   els.tabPanels.forEach(p => p.classList.toggle("active", p.id === "panel-" + tabName));
   if (tabName === "history") renderHistory();
+  if (tabName === "online") renderOnlineManager(); // v9.8.0：切到在线修改时刷新（权限+数据均可能已变化）
+}
+
+// -------------------- v9.8.0 在线修改（数据管理 · 报价历史与云同步之间） --------------------
+
+/**
+ * 权限判定：http 部署时仅管理员可用；file:// 本地离线（无 KOKA）视为机主，放行。
+ */
+function isOnlineEditAdmin() {
+  if (!window.KOKA) return true;
+  return !!(KOKA.user && KOKA.user.role === "admin");
+}
+
+function setOnlineTplStatus(html, isError) {
+  if (!els.onlineTplStatus) return;
+  els.onlineTplStatus.innerHTML = html;
+  els.onlineTplStatus.style.color = isError ? "var(--danger)" : "var(--text-secondary)";
+}
+
+/**
+ * 渲染在线修改区块：按组列出报价表（改名/移动/删除），并同步模板目标下拉。
+ * 非管理员（http 模式）只显示锁定提示。
+ */
+function renderOnlineManager() {
+  if (!els.onlineGroupsWrap) return;
+  const allowed = isOnlineEditAdmin();
+  if (els.onlineLockNotice) els.onlineLockNotice.hidden = allowed;
+  if (els.onlineManagerRoot) els.onlineManagerRoot.style.display = allowed ? "" : "none";
+  if (!allowed) return;
+
+  const groups = getPriceListGroups();
+  els.onlineGroupsWrap.innerHTML = groups.map(group => {
+    const lists = PRICE_LISTS.filter(p => p.groupId === group.id);
+    const rows = lists.map(pl => {
+      const paperCount = getPapersByPriceList(pl.id).length;
+      const groupOptions = groups.map(g =>
+        `<option value="${escapeHtml(g.id)}"${g.id === group.id ? " selected" : ""}>${escapeHtml(g.name)}</option>`
+      ).join("");
+      return `<tr>
+        <td class="online-pl-name">${escapeHtml(pl.name)}${pl.id === CURRENT_PRICE_LIST_ID ? '<span class="online-current-badge">当前</span>' : ""}</td>
+        <td>${paperCount}</td>
+        <td><select class="online-move-select" data-id="${escapeHtml(pl.id)}" aria-label="切换归属组">${groupOptions}</select></td>
+        <td class="online-actions">
+          <button class="btn sm" data-action="online-rename-pl" data-id="${escapeHtml(pl.id)}">重命名</button>
+          <button class="btn danger sm" data-action="online-delete-pl" data-id="${escapeHtml(pl.id)}">删除</button>
+        </td>
+      </tr>`;
+    }).join("");
+    return `<div class="online-group-card" data-group="${escapeHtml(group.id)}">
+      <div class="online-group-head">
+        <div class="online-group-title">
+          <span class="online-group-name">${escapeHtml(group.name)}</span>
+          <span class="online-group-meta">${lists.length} 个报价表</span>
+        </div>
+        <div class="online-actions">
+          <button class="btn sm" data-action="online-rename-group" data-id="${escapeHtml(group.id)}">重命名组</button>
+          <button class="btn secondary sm" data-action="online-add-pl" data-id="${escapeHtml(group.id)}">新增报价表</button>
+          <button class="btn danger-outline sm" data-action="online-delete-group" data-id="${escapeHtml(group.id)}">删除组</button>
+        </div>
+      </div>
+      ${lists.length ? `<div class="history-table-wrap"><table class="data-table online-pl-table">
+        <thead><tr><th>报价表</th><th>纸张数</th><th>归属组</th><th>操作</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table></div>` : `<div class="empty-state online-group-empty">该组暂无报价表</div>`}
+    </div>`;
+  }).join("");
+
+  // 区块二：模板目标下拉（沿用当前选中，避免刷新后跳变）
+  if (els.onlineTplPriceList) {
+    const keep = els.onlineTplPriceList.value;
+    els.onlineTplPriceList.innerHTML = PRICE_LISTS.map(pl =>
+      `<option value="${escapeHtml(pl.id)}"${pl.id === (keep || CURRENT_PRICE_LIST_ID) ? " selected" : ""}>${escapeHtml(pl.name)}（${escapeHtml(getGroupName(pl.groupId))}）</option>`
+    ).join("");
+    if (!els.onlineTplPriceList.value && PRICE_LISTS.length) els.onlineTplPriceList.value = PRICE_LISTS[0].id;
+  }
+}
+
+/** 在线修改区：组卡片内按钮（事件委托，容器自身不随 innerHTML 重建而失效） */
+function handleOnlineGroupsClick(e) {
+  const btn = e.target.closest("button[data-action]");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  switch (btn.dataset.action) {
+    case "online-rename-group": {
+      const group = getPriceListGroups().find(g => g.id === id);
+      const name = prompt("请输入新的报价表组名称：", group ? group.name : "");
+      if (name == null || !name.trim()) return;
+      const r = renamePriceListGroup(id, name);
+      if (!r.ok) { showToast(r.message); return; }
+      renderOnlineManager();
+      showToast("报价表组已重命名");
+      break;
+    }
+    case "online-delete-group": {
+      if (!confirm("确认删除该报价表组？仅允许删除空组。")) return;
+      const r = deletePriceListGroup(id);
+      if (!r.ok) { showToast(r.message); return; }
+      renderOnlineManager();
+      showToast("报价表组已删除");
+      break;
+    }
+    case "online-add-pl": {
+      const name = prompt("请输入新报价表名称：", "");
+      if (name == null || !name.trim()) return;
+      addPriceList(name.trim(), id, false); // 不切换当前报价表，避免打断操作
+      renderPriceListSelector();
+      renderOnlineManager();
+      showToast(`已新增报价表「${name.trim()}」，可在下方按模板导入数据`);
+      break;
+    }
+    case "online-rename-pl": {
+      const pl = PRICE_LISTS.find(p => p.id === id);
+      const name = prompt("请输入新的报价表名称：", pl ? pl.name : "");
+      if (name == null || !name.trim()) return;
+      const r = renamePriceList(id, name);
+      if (!r.ok) { showToast(r.message); return; }
+      renderPriceListSelector();
+      renderOnlineManager();
+      showToast("报价表已重命名");
+      break;
+    }
+    case "online-delete-pl": {
+      const pl = PRICE_LISTS.find(p => p.id === id);
+      const paperCount = getPapersByPriceList(id).length;
+      if (!confirm(`确认删除报价表「${pl ? pl.name : id}」？其 ${paperCount} 张纸张与关联工艺将一并删除。`)) return;
+      const before = CURRENT_PRICE_LIST_ID;
+      if (!deletePriceList(id)) { showToast("删除失败：至少保留一个报价表"); return; }
+      if (before !== CURRENT_PRICE_LIST_ID) {
+        // 删除的是当前报价表：已自动切换，需重建纸张 UI 并重算
+        currentPaperIndex = 0;
+        rebuildPaperUI();
+        onCalculate();
+      }
+      renderPriceListSelector();
+      renderOnlineManager();
+      showToast("报价表已删除");
+      break;
+    }
+  }
+}
+
+/** 在线修改区：归属组切换下拉（change 事件委托） */
+function handleOnlineGroupsChange(e) {
+  const sel = e.target.closest("select.online-move-select");
+  if (!sel) return;
+  const r = movePriceListToGroup(sel.dataset.id, sel.value);
+  if (!r.ok) { showToast(r.message); renderOnlineManager(); return; }
+  renderOnlineManager();
+  showToast(`报价表已移动到「${getGroupName(sel.value)}」`);
+}
+
+/** 按模板导出指定报价表（含现有数据，供管理员修改后回导） */
+function exportPriceListTemplateById(priceListId) {
+  // P1.4: 确保 SheetJS 已加载
+  if (typeof XLSX === "undefined") { loadSheetJS().then(() => exportPriceListTemplateById(priceListId)).catch(() => showToast("Excel 库加载失败，请检查网络")); return; }
+  const pl = PRICE_LISTS.find(p => p.id === priceListId);
+  if (!pl) { showToast("目标报价表不存在"); return; }
+  const papers = getPapersByPriceList(priceListId);
+  if (!papers.length) { showToast(`「${pl.name}」暂无纸张数据，请先用价格配置页导入 Excel`); return; }
+  const wb = XLSX.utils.book_new();
+  const usedSheetNames = new Set();
+  for (const paper of papers) {
+    const ws = XLSX.utils.aoa_to_sheet(paperToSheetRows(paper, pl));
+    XLSX.utils.book_append_sheet(wb, ws, toSafeSheetName(paper.shortName || paper.name, usedSheetNames));
+  }
+  XLSX.writeFile(wb, `KOKALabel${pl.name}修改模板_${formatDateFile()}.xlsx`);
+  showToast(`「${pl.name}」修改模板已导出（${papers.length} 张）`);
+}
+
+/** 数据变更后的统一刷新（在线修改区 + 计算器联动） */
+function refreshAfterPriceListDataChange(priceListId) {
+  renderPriceListSelector();
+  renderOnlineManager();
+  if (CURRENT_PRICE_LIST_ID === priceListId) {
+    currentPaperIndex = 0;
+    rebuildPaperUI();
+    renderPriceTable();
+    onCalculate();
+  }
+}
+
+/** 管理员按模板导入：解析后原地覆盖目标报价表（不新建报价表） */
+function importPaperExcelToPriceList(file, targetPriceListId) {
+  if (!file || !targetPriceListId) return;
+  if (file.size > MAX_IMPORT_FILE_SIZE) { setOnlineTplStatus("文件过大（超过 50MB），请检查后再导入", true); return; }
+  if (typeof XLSX === "undefined") {
+    loadSheetJS().then(() => importPaperExcelToPriceList(file, targetPriceListId)).catch(() => { setOnlineTplStatus("Excel 库加载失败，请检查网络", true); });
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const parsed = parsePaperExcel(e.target.result);
+      const result = applyPriceListData(targetPriceListId, parsed);
+      if (!result.ok) { setOnlineTplStatus(result.message, true); return; }
+      // 模板里改了「总报价表」名 → 同步重命名目标报价表
+      let renamed = false;
+      if (parsed.priceListName && parsed.priceListName !== (PRICE_LISTS.find(p => p.id === targetPriceListId) || {}).name) {
+        renamed = renamePriceList(targetPriceListId, parsed.priceListName).ok;
+      }
+      refreshAfterPriceListDataChange(targetPriceListId);
+      const errors = parsed.errors || [];
+      const plName = (PRICE_LISTS.find(p => p.id === targetPriceListId) || {}).name || "";
+      const okMsg = `已覆盖「${escapeHtml(plName)}」：${result.paperCount} 张纸张${result.craftCount ? `，含 ${result.craftCount} 条工艺` : ""}${renamed ? "，报价表已按模板改名" : ""}`;
+      const errMsg = errors.length ? `<br><span style="color:var(--danger)">警告：${errors.map(escapeHtml).join("；")}</span>` : "";
+      setOnlineTplStatus(okMsg + errMsg, false);
+      showToast(`在线修改已应用到「${plName}」`);
+    } catch (err) {
+      setOnlineTplStatus("导入失败：" + escapeHtml(err.message), true);
+      showToast("Excel 导入失败");
+    }
+    if (els.onlineImportTplFile) els.onlineImportTplFile.value = "";
+  };
+  reader.onerror = () => {
+    setOnlineTplStatus("文件读取失败", true);
+    if (els.onlineImportTplFile) els.onlineImportTplFile.value = "";
+  };
+  reader.readAsArrayBuffer(file);
 }
 
 // -------------------- 快照管理 --------------------
@@ -2828,6 +3057,7 @@ function createSnapshot() {
     createdAt: new Date().toISOString(),
     data: {
       priceLists: PRICE_LISTS,
+      priceListGroups: PRICE_LIST_GROUPS, // v9.8.0：组配置随快照保存
       currentPriceListId: CURRENT_PRICE_LIST_ID,
       customerLevels: CUSTOMER_LEVELS,
       appProfile: APP_PROFILE,
@@ -2865,6 +3095,11 @@ function renderSnapshots() {
       if (item.data.priceLists) {
         PRICE_LISTS = item.data.priceLists;
         saveToStorage("priceLists", PRICE_LISTS);
+      }
+      // v9.8.0：恢复报价表组配置（旧快照无该字段则保留现状）
+      if (item.data.priceListGroups) {
+        PRICE_LIST_GROUPS = item.data.priceListGroups;
+        saveToStorage("priceListGroups", PRICE_LIST_GROUPS);
       }
       if (item.data.currentPriceListId) {
         CURRENT_PRICE_LIST_ID = item.data.currentPriceListId;
@@ -3611,6 +3846,7 @@ function exportLocalBackup() {
     kind: "local-backup",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
+    priceListGroups: PRICE_LIST_GROUPS, // v9.8.0：组配置随本地备份保存
     currentPriceListId: CURRENT_PRICE_LIST_ID,
     customerLevels: CUSTOMER_LEVELS,
     appProfile: APP_PROFILE,
@@ -3674,6 +3910,13 @@ function validateImportedData(data, expectedKind) {
   if (data.priceLists) data.priceLists.forEach(pl => {
     validateString(pl.id, "报价表ID");
     validateString(pl.name, "报价表名称");
+  });
+
+  // v9.8.0：报价表组（在线修改新增结构）
+  validateArray(data.priceListGroups, "报价表组配置");
+  if (data.priceListGroups) data.priceListGroups.forEach(g => {
+    validateString(g.id, "报价表组ID");
+    validateString(g.name, "报价表组名称");
   });
 
   validateArray(data.customerLevels, "客户等级");
@@ -3776,6 +4019,11 @@ function importLocalBackup(file) {
         PRICE_LISTS = data.priceLists;
         saveToStorage("priceLists", PRICE_LISTS);
       }
+      // v9.8.0：还原报价表组（旧文件无该字段则保留现状）
+      if (Array.isArray(data.priceListGroups)) {
+        PRICE_LIST_GROUPS = data.priceListGroups;
+        saveToStorage("priceListGroups", PRICE_LIST_GROUPS);
+      }
       if (data.currentPriceListId) {
         CURRENT_PRICE_LIST_ID = data.currentPriceListId;
         saveToStorage("currentPriceListId", CURRENT_PRICE_LIST_ID);
@@ -3845,6 +4093,7 @@ function exportFullData() {
     kind: "full-config",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
+    priceListGroups: PRICE_LIST_GROUPS, // v9.8.0：组配置随完整配置导出
     currentPriceListId: CURRENT_PRICE_LIST_ID,
     customerLevels: CUSTOMER_LEVELS,
     appProfile: APP_PROFILE,
@@ -3877,6 +4126,11 @@ function importFullData(file) {
       if (data.priceLists && Array.isArray(data.priceLists)) {
         PRICE_LISTS = data.priceLists;
         saveToStorage("priceLists", PRICE_LISTS);
+      }
+      // v9.8.0：还原报价表组（旧文件无该字段则保留现状）
+      if (Array.isArray(data.priceListGroups)) {
+        PRICE_LIST_GROUPS = data.priceListGroups;
+        saveToStorage("priceListGroups", PRICE_LIST_GROUPS);
       }
       if (data.currentPriceListId) {
         CURRENT_PRICE_LIST_ID = data.currentPriceListId;
@@ -3940,9 +4194,11 @@ function setExcelStatus(html, isError) {
   els.excelImportStatus.style.color = isError ? "var(--danger)" : "var(--text-secondary)";
 }
 
-function paperToSheetRows(paper) {
+function paperToSheetRows(paper, priceList) {
   // 返回二维数组，按规划模板结构（含工艺区）
   // 关键：取规格档位 + 工艺档位的并集并排序，确保规格行与工艺行列宽一致
+  // v9.8.0：priceList 可选参数——在线修改区导出指定报价表模板时传入，缺省为当前报价表
+  const pl = priceList || getCurrentPriceList();
   const specTierKeys = paper.specs.length
     ? Object.keys(paper.specs[0].prices).map(Number)
     : [];
@@ -4017,8 +4273,8 @@ function paperToSheetRows(paper) {
     ];
   }
   return [
-    ["所属小组", GROUP_NAME_MAP[getCurrentPriceList().groupId] || GROUP_META.name],
-    ["总报价表", safeExcelText(getCurrentPriceList().name)],
+    ["所属小组", getGroupName(pl.groupId) || GROUP_META.name],
+    ["总报价表", safeExcelText(pl.name)],
     ["报价表全称", safeExcelText(paper.name)],
     ["简称", safeExcelText(paper.shortName)],
     ["折扣系数", paper.discount],
@@ -4082,7 +4338,7 @@ function downloadPaperTemplate() {
   DEFAULT_PAPER_CONFIG.forEach((paper, idx) => {
     const rows = [];
     // 元信息区
-    rows.push(["所属小组", GROUP_NAME_MAP[getCurrentPriceList().groupId] || GROUP_META.name]);
+    rows.push(["所属小组", getGroupName(getCurrentPriceList().groupId) || GROUP_META.name]);
     rows.push(["总报价表", getCurrentPriceList().name]);
     rows.push(["报价表全称", paper.name]);
     rows.push(["简称", paper.shortName]);
@@ -4953,6 +5209,36 @@ function bindEvents() {
     tab.addEventListener("click", () => switchTab(tab.dataset.tab));
   });
 
+  // v9.8.0 在线修改：组卡片事件委托（容器不随 innerHTML 重建，只需绑一次）
+  if (els.onlineGroupsWrap) {
+    els.onlineGroupsWrap.addEventListener("click", handleOnlineGroupsClick);
+    els.onlineGroupsWrap.addEventListener("change", handleOnlineGroupsChange);
+  }
+  if (els.onlineAddGroupBtn) els.onlineAddGroupBtn.addEventListener("click", () => {
+    const name = prompt("请输入新报价表组名称：", "");
+    if (name == null || !name.trim()) return;
+    const r = addPriceListGroup(name);
+    if (!r.ok) { showToast(r.message); return; }
+    renderOnlineManager();
+    showToast(`已新增报价表组「${name.trim()}」`);
+  });
+  if (els.onlineExportTplBtn) els.onlineExportTplBtn.addEventListener("click", () => {
+    if (!isOnlineEditAdmin()) return;
+    const target = els.onlineTplPriceList && els.onlineTplPriceList.value;
+    if (!target) { setOnlineTplStatus("请先选择目标报价表", true); return; }
+    exportPriceListTemplateById(target);
+  });
+  if (els.onlineImportTplBtn) els.onlineImportTplBtn.addEventListener("click", () => {
+    if (!isOnlineEditAdmin()) return;
+    const target = els.onlineTplPriceList && els.onlineTplPriceList.value;
+    if (!target) { setOnlineTplStatus("请先选择目标报价表", true); return; }
+    els.onlineImportTplFile.click();
+  });
+  if (els.onlineImportTplFile) els.onlineImportTplFile.addEventListener("change", e => {
+    if (!e.target.files || !e.target.files[0]) return;
+    importPaperExcelToPriceList(e.target.files[0], els.onlineTplPriceList.value);
+  });
+
   // 数据管理按钮
   if (els.exportDataBtn) els.exportDataBtn.addEventListener("click", exportFullData);
   if (els.importDataBtn) els.importDataBtn.addEventListener("click", () => els.importFile.click());
@@ -5126,6 +5412,7 @@ function initDefaultDataUpload() {
     try {
       const packet = {
         priceLists: PRICE_LISTS,
+        priceListGroups: PRICE_LIST_GROUPS, // v9.8.0：组名随默认数据下发，保证全员一致
         paperConfig: PAPER_CONFIG,
         craftConfig: CRAFT_CONFIG,
         ropeConfig: ROPE_CONFIG,

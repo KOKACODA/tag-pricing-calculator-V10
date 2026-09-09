@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v9.7.3 - 数据配置层
+// KOKALabel报价系统 v9.8.0 - 数据配置层
 // ============================================================
 "use strict";
 
@@ -68,8 +68,14 @@ const DEFAULT_PRICE_LISTS = [
   { id: "priceList1", name: "1楼", groupId: "group1" },
   { id: "priceList2", name: "3楼", groupId: "group2" }
 ];
+// v9.8.0：报价表组可在线增删改名（默认沿用原有两组，向后兼容旧 localStorage）
+const DEFAULT_PRICE_LIST_GROUPS = [
+  { id: "group1", name: "1楼小组" },
+  { id: "group2", name: "3楼小组" }
+];
 // EPHEMERAL_KEYS 提前定义为空数组（不拦截任何 key），供 loadFromStorage 安全调用
 const EPHEMERAL_KEYS = [];
+let PRICE_LIST_GROUPS = loadFromStorage("priceListGroups", DEFAULT_PRICE_LIST_GROUPS.map(g => ({ ...g })));
 let PRICE_LISTS = loadFromStorage("priceLists", DEFAULT_PRICE_LISTS.map(p => ({ ...p })));
 let CURRENT_PRICE_LIST_ID = loadFromStorage("currentPriceListId", "priceList1");
 
@@ -9812,14 +9818,19 @@ function setCurrentPriceList(priceListId) {
 /**
  * 新增报价表并切换为当前报价表。
  * @param {string} name 报价表名称
+ * @param {string} [groupId] 所属报价表组 ID（v9.8.0：缺省沿用当前小组）
+ * @param {boolean} [switchTo=true] 是否切换为当前报价表（v9.8.0：在线管理区新增时不抢焦点）
  * @returns {string} 新报价表 ID
  */
-function addPriceList(name) {
-  const id = "priceList_" + Date.now().toString(36);
-  PRICE_LISTS.push({ id, name, groupId: GROUP_META.id });
+function addPriceList(name, groupId, switchTo) {
+  // v9.8.0：追加随机后缀防碰撞（同一毫秒内连续新增会生成相同纯时间戳 ID）
+  const id = "priceList_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  PRICE_LISTS.push({ id, name, groupId: groupId || GROUP_META.id });
   saveToStorage("priceLists", PRICE_LISTS);
-  CURRENT_PRICE_LIST_ID = id;
-  saveToStorage("currentPriceListId", CURRENT_PRICE_LIST_ID);
+  if (switchTo !== false) {
+    CURRENT_PRICE_LIST_ID = id;
+    saveToStorage("currentPriceListId", CURRENT_PRICE_LIST_ID);
+  }
   return id;
 }
 /**
@@ -9850,5 +9861,136 @@ function deletePriceList(priceListId) {
     saveToStorage("currentPriceListId", CURRENT_PRICE_LIST_ID);
   }
   return true;
+}
+
+// ============================================================
+// ============ v9.8.0 在线修改：报价表组/报价表管理 ============
+// ============================================================
+
+/** 返回全部报价表组 */
+function getPriceListGroups() {
+  return PRICE_LIST_GROUPS;
+}
+
+/** 按 ID 取组名（兼容旧数据：组不存在时回退 GROUP_NAME_MAP） */
+function getGroupName(groupId) {
+  const g = PRICE_LIST_GROUPS.find(x => x.id === groupId);
+  if (g) return g.name;
+  return GROUP_NAME_MAP[groupId] || "未分组";
+}
+
+/**
+ * 新增报价表组。
+ * @param {string} name 组名（去首尾空格，非空）
+ * @returns {{ok: boolean, id?: string, message?: string}}
+ */
+function addPriceListGroup(name) {
+  const trimmed = String(name == null ? "" : name).trim();
+  if (!trimmed) return { ok: false, message: "组名不能为空" };
+  if (PRICE_LIST_GROUPS.some(g => g.name === trimmed)) return { ok: false, message: "已存在同名报价表组" };
+  // 随机后缀防碰撞（同 addPriceList）
+  const id = "group_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  PRICE_LIST_GROUPS.push({ id, name: trimmed });
+  saveToStorage("priceListGroups", PRICE_LIST_GROUPS);
+  return { ok: true, id };
+}
+
+/**
+ * 重命名报价表组（同步迁移 GROUP_NAME_MAP，保证导出 Excel 元信息一致）。
+ * @param {string} groupId 组 ID
+ * @param {string} newName 新组名
+ * @returns {{ok: boolean, message?: string}}
+ */
+function renamePriceListGroup(groupId, newName) {
+  const trimmed = String(newName == null ? "" : newName).trim();
+  const group = PRICE_LIST_GROUPS.find(g => g.id === groupId);
+  if (!group) return { ok: false, message: "报价表组不存在" };
+  if (!trimmed) return { ok: false, message: "组名不能为空" };
+  if (PRICE_LIST_GROUPS.some(g => g.id !== groupId && g.name === trimmed)) {
+    return { ok: false, message: "已存在同名报价表组" };
+  }
+  group.name = trimmed;
+  // 同步常量映射（导出 Excel「所属小组」行仍读该映射）
+  if (groupId in GROUP_NAME_MAP) GROUP_NAME_MAP[groupId] = trimmed;
+  saveToStorage("priceListGroups", PRICE_LIST_GROUPS);
+  return { ok: true };
+}
+
+/**
+ * 删除报价表组。仅允许删除空组且非最后一个组。
+ * @param {string} groupId 组 ID
+ * @returns {{ok: boolean, message?: string}}
+ */
+function deletePriceListGroup(groupId) {
+  const idx = PRICE_LIST_GROUPS.findIndex(g => g.id === groupId);
+  if (idx === -1) return { ok: false, message: "报价表组不存在" };
+  if (PRICE_LIST_GROUPS.length <= 1) return { ok: false, message: "至少保留一个报价表组" };
+  if (PRICE_LISTS.some(p => p.groupId === groupId)) return { ok: false, message: "组内仍有报价表，请先删除或移动" };
+  PRICE_LIST_GROUPS.splice(idx, 1);
+  saveToStorage("priceListGroups", PRICE_LIST_GROUPS);
+  return { ok: true };
+}
+
+/**
+ * 重命名报价表。
+ * @param {string} priceListId 报价表 ID
+ * @param {string} newName 新名称
+ * @returns {{ok: boolean, message?: string}}
+ */
+function renamePriceList(priceListId, newName) {
+  const pl = PRICE_LISTS.find(p => p.id === priceListId);
+  if (!pl) return { ok: false, message: "报价表不存在" };
+  const trimmed = String(newName == null ? "" : newName).trim();
+  if (!trimmed) return { ok: false, message: "报价表名称不能为空" };
+  if (PRICE_LISTS.some(p => p.id !== priceListId && p.name === trimmed)) {
+    return { ok: false, message: "已存在同名报价表" };
+  }
+  pl.name = trimmed;
+  saveToStorage("priceLists", PRICE_LISTS);
+  return { ok: true };
+}
+
+/**
+ * 把报价表移动到指定组。
+ * @param {string} priceListId 报价表 ID
+ * @param {string} groupId 目标组 ID
+ * @returns {{ok: boolean, message?: string}}
+ */
+function movePriceListToGroup(priceListId, groupId) {
+  const pl = PRICE_LISTS.find(p => p.id === priceListId);
+  if (!pl) return { ok: false, message: "报价表不存在" };
+  if (!PRICE_LIST_GROUPS.some(g => g.id === groupId)) return { ok: false, message: "目标报价表组不存在" };
+  pl.groupId = groupId;
+  saveToStorage("priceLists", PRICE_LISTS);
+  return { ok: true };
+}
+
+/**
+ * 在线修改：把解析后的 Excel 数据原地覆盖到指定报价表（不新建报价表）。
+ * 旧纸张与旧工艺会先清理，再合入新数据。
+ * @param {string} priceListId 目标报价表 ID
+ * @param {{papers: Array, crafts: Object}} parsed parsePaperExcel 的解析结果
+ * @returns {{ok: boolean, message?: string, paperCount?: number, craftCount?: number}}
+ */
+function applyPriceListData(priceListId, parsed) {
+  const pl = PRICE_LISTS.find(p => p.id === priceListId);
+  if (!pl) return { ok: false, message: "目标报价表不存在" };
+  const papers = (parsed && parsed.papers) || [];
+  if (!papers.length) return { ok: false, message: "解析结果中没有纸张数据" };
+  // 1. 清理目标报价表的旧纸张及其工艺
+  const removedPaperIds = new Set(PAPER_CONFIG.filter(p => p.priceListId === priceListId).map(p => p.id));
+  PAPER_CONFIG = PAPER_CONFIG.filter(p => p.priceListId !== priceListId);
+  const crafts = parsed.crafts || {};
+  Object.keys(CRAFT_CONFIG).forEach(pid => {
+    if (removedPaperIds.has(pid) && !crafts[pid]) delete CRAFT_CONFIG[pid];
+  });
+  // 2. 写入新纸张（绑定目标报价表）并合入工艺
+  papers.forEach(p => { p.priceListId = priceListId; });
+  PAPER_CONFIG = PAPER_CONFIG.concat(papers);
+  CRAFT_CONFIG = { ...CRAFT_CONFIG, ...crafts };
+  saveToStorage("paperConfig", PAPER_CONFIG);
+  saveToStorage("craftConfig", CRAFT_CONFIG);
+  const craftCount = Object.values(crafts).reduce((sum, arr) => sum + (arr ? arr.length : 0), 0);
+  return { ok: true, paperCount: papers.length, craftCount };
 }
 

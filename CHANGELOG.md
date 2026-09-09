@@ -1,5 +1,17 @@
 # KOKALabel 报价系统 变更日志
 
+## v9.8.0（2026-09-09）
+
+### 数据管理新增「在线修改」标签页：报价表组/报价表在线管理 + 管理员按模板改数据
+
+- **新增「在线修改」标签页**（个人主页 · 数据管理，位于「报价历史」与「云同步」之间）：区块一「报价表组与报价表管理」——按组渲染卡片（组名 / 报价表数 / 重命名组 / 新增报价表 / 删除组），组内报价表表格支持重命名、删除（联动清理纸张与工艺）、归属组下拉直接移动；区块二「按模板修改报价数据（管理员）」——选定目标报价表 → 导出含现有数据的模板 → 修改后导入即原地覆盖该报价表（`applyPriceListData` 先清旧纸张/工艺再合入新数据，不再像价格配置页那样「导入 = 新增报价表」）；模板内改「总报价表」名会同步重命名目标报价表。
+- **权限门控**：http 部署时仅管理员可用（非管理员显示锁定提示、隐藏管理区），`file://` 本地离线（无登录体系）视为机主放行；访客本就无个人主页入口。
+- **数据层新增**（`js/data.js`）：`PRICE_LIST_GROUPS` 持久化存储 + `getPriceListGroups` / `getGroupName` / `addPriceListGroup` / `renamePriceListGroup`（同步迁移 `GROUP_NAME_MAP` 保证 Excel 导出元信息一致）/ `deletePriceListGroup`（仅空组且非最后一组）/ `renamePriceList` / `movePriceListToGroup` / `applyPriceListData`；`addPriceList` 增加可选 `groupId` / `switchTo` 参数（在线管理区新增不抢当前报价表焦点），并修复 ID 纯时间戳同毫秒碰撞（追加随机后缀，`addPriceListGroup` 同）。
+- **组配置全链路覆盖**：本地备份 / 完整配置 JSON 的导出与导入、快照保存与恢复、重置为默认配置 / 恢复全局默认 / 清除缓存、管理员「上传默认数据」云下发（`auth.js` 应用 `priceListGroups`）均包含组配置；导入数据校验 `validateImportedData` 新增组结构校验；旧备份/旧快照无该字段时保留现状（向后兼容）。
+- **修复**：`paperToSheetRows` 参数化（可导出任意报价表模板，不再硬编码当前报价表）；导出元信息「所属小组」改用动态 `getGroupName()`。
+- 测试：新增 `tests/online-edit.test.mjs`（12 用例：组/表 CRUD 与持久化、改名重名校验、删除守卫、`applyPriceListData` 覆盖语义、UI 结构与事件绑定、组配置全链路覆盖），全站 57/57 通过。
+- 版本号同步：全站升至 v9.8.0。
+
 ## v9.7.3（2026-09-09）
 
 ### 1 楼默认报价表整体变更（28 组 → 33 组）+ 迁移守卫版本比较修复

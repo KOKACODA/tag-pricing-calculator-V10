@@ -72,6 +72,7 @@
       if (data.shippingConfig) store('shippingConfig', data.shippingConfig);
       if (data.customerLevels) store('customerLevels', data.customerLevels);
       if (data.priceLists) store('priceLists', data.priceLists);
+      if (data.priceListGroups) store('priceListGroups', data.priceListGroups); // v9.8.0：在线修改的组配置
       localStorage.setItem('koka_default_version', String(d.version));
       location.reload();
       return true;

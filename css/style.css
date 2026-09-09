@@ -1,4 +1,4 @@
-/* KOKALabel报价系统 v9.7.3 - 样式表 */
+/* KOKALabel报价系统 v9.8.0 - 样式表 */
 
 /* ===================== 折叠区（附加工艺 / 吊绳类型） ===================== */
 .collapsible .collapse-toggle {
@@ -97,7 +97,7 @@
       left: 15%;
       right: 15%;
       height: 3px;
-      background: #fff;
+      background: var(--card);
       border-radius: 3px 3px 0 0;
     }
 
@@ -217,7 +217,7 @@
       width: 13px;
       height: 13px;
       border-radius: 50%;
-      background: #fff;
+      background: var(--card);
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.24);
       transition: left 0.2s;
     }
@@ -257,7 +257,7 @@
       font-size: 13px;
       font-weight: 600;
       border: none;
-      background: #fff;
+      background: var(--card);
       color: var(--brand);
       cursor: pointer;
       transition: all 0.2s;
@@ -309,7 +309,7 @@
       font-size: 13px;
       font-weight: 600;
       color: var(--brand-dark);
-      background: #fff;
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: 6px;
       cursor: pointer;
@@ -366,7 +366,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       font-size: 15px;
-      background: #fff;
+      background: var(--card);
       transition: border 0.2s, box-shadow 0.2s;
     }
 
@@ -438,7 +438,7 @@
       padding: 8px 42px 8px 10px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: #fff;
+      background: var(--card);
       cursor: pointer;
       transition: all 0.15s;
       font-size: 13px;
@@ -502,7 +502,7 @@
       padding: 11px 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: #fff;
+      background: var(--card);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -554,7 +554,7 @@
       grid-template-columns: repeat(2, 1fr);
       gap: 8px;
       padding: 10px;
-      background: #fff;
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: 10px;
       box-shadow: 0 8px 24px rgba(15, 111, 196, 0.15);
@@ -574,7 +574,7 @@
       z-index: 2;
       grid-column: 1 / -1;
       padding-bottom: 2px;
-      background: #fff;
+      background: var(--card);
     }
 
     .paper-search-input {
@@ -591,7 +591,7 @@
       outline: none;
       border-color: var(--brand);
       box-shadow: 0 0 0 3px rgba(15, 111, 196, 0.12);
-      background: #fff;
+      background: var(--card);
     }
 
     .paper-search-empty {
@@ -613,7 +613,7 @@
       padding: 9px 11px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: #fff;
+      background: var(--card);
       cursor: pointer;
       transition: all 0.15s;
       font-size: 14px;
@@ -664,7 +664,7 @@
       padding: 10px 46px 10px 12px;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: #fff;
+      background: var(--card);
       cursor: pointer;
       transition: all 0.15s;
     }
@@ -859,7 +859,7 @@
       width: 100%;
       border: 1px solid var(--border);
       border-radius: 8px;
-      background: #fff;
+      background: var(--card);
       color: var(--text);
       font: inherit;
       font-weight: 400;
@@ -1191,7 +1191,7 @@
       font-size: 13px;
       border: 1px solid var(--border);
       border-radius: 20px;
-      background: #fff;
+      background: var(--card);
       color: var(--text);
       cursor: pointer;
       transition: all 0.15s;
@@ -1527,7 +1527,7 @@
     /* v7.9.1：单元格进入编辑时去掉 padding，让 input 真正充满单元格，修复「0.00」被截断 */
     .price-cell:has(.price-cell-input) {
       padding: 0;
-      background: #fff;
+      background: var(--card);
     }
     .price-cell-input {
       width: 100%;
@@ -1538,7 +1538,7 @@
       font-size: 13px;
       text-align: center;
       box-sizing: border-box;
-      background: #fff;
+      background: var(--card);
       -moz-appearance: textfield;
     }
     .price-cell-input::-webkit-outer-spin-button,
@@ -1823,7 +1823,7 @@
       width: 18px;
       left: 3px;
       bottom: 3px;
-      background: #fff;
+      background: var(--card);
       border-radius: 50%;
       transition: 0.2s;
     }
@@ -1859,7 +1859,7 @@
     }
 
     .btn.secondary {
-      background: #fff;
+      background: var(--card);
       color: var(--brand);
       border: 1px solid var(--brand);
     }
@@ -1877,7 +1877,7 @@
     }
 
     .btn.danger-outline {
-      background: #fff;
+      background: var(--card);
       color: var(--danger);
       border: 1px solid var(--danger);
     }
@@ -1998,6 +1998,135 @@
       min-width: 900px;
     }
 
+    /* ===================== v9.8.0 在线修改 ===================== */
+    .online-lock-notice {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 16px;
+      margin: 6px 0 12px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: var(--brand-light);
+    }
+
+    .online-lock-notice[hidden] {
+      display: none;
+    }
+
+    .online-lock-title {
+      color: var(--brand-dark);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .online-lock-desc {
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .online-section-gap {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .online-group-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      background: var(--card);
+    }
+
+    .online-group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .online-group-title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .online-group-name {
+      color: var(--brand-dark);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .online-group-meta {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .online-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .online-pl-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .online-current-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      background: var(--brand-light);
+      color: var(--brand-dark);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .online-move-select {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card);
+      cursor: pointer;
+    }
+
+    .online-group-empty {
+      padding: 18px 10px;
+    }
+
+    .online-tpl-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .online-tpl-select {
+      flex: 1;
+      min-width: 220px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--card);
+    }
+
+    .online-tpl-btns {
+      margin-top: 0;
+    }
+
     .history-record-title {
       display: block;
       color: var(--text);
@@ -2063,7 +2192,7 @@
       display: flex;
       max-height: calc(100vh - 28px);
       flex-direction: column;
-      background: #fff;
+      background: var(--card);
     }
 
     .history-dialog-header,
@@ -2073,7 +2202,7 @@
       justify-content: space-between;
       gap: 12px;
       padding: 16px 18px;
-      background: #fff;
+      background: var(--card);
     }
 
     .history-dialog-header {
@@ -2155,7 +2284,7 @@
     }
 
     .stat-panel {
-      background: #fff;
+      background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px 18px;
@@ -2304,7 +2433,7 @@
     }
 
     .shipping-dialog-shell {
-      background: #fff;
+      background: var(--card);
     }
 
     .shipping-dialog-header {
@@ -2369,7 +2498,7 @@
       border-radius: 8px;
       font-size: 15px;
       color: var(--text);
-      background: #fff;
+      background: var(--card);
     }
 
     .shipping-dialog-field input:focus {
@@ -2395,7 +2524,7 @@
     .history-detail-section {
       border: 1px solid var(--border);
       border-radius: 10px;
-      background: #fff;
+      background: var(--card);
     }
 
     .history-detail-meta-item {
@@ -2932,7 +3061,7 @@
       font-size: clamp(0.8125rem, 3.5vw, 0.9375rem);
       border: 1px solid var(--border);
       border-radius: 0.5rem;
-      background: #fff;
+      background: var(--card);
       cursor: pointer;
       transition: border 0.2s, box-shadow 0.2s;
       max-width: 100%;
@@ -3153,7 +3282,7 @@
       border: 1px solid var(--border);
       border-radius: 0.5rem;
       font-size: clamp(0.75rem, 3.5vw, 0.875rem);
-      background: #fff;
+      background: var(--card);
       cursor: pointer;
       transition: border 0.2s, box-shadow 0.2s;
       min-width: 0;

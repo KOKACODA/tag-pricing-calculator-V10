@@ -4,11 +4,11 @@
 
 ## 一句话定位
 
-KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v9.7.2）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
+KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v9.8.0）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
 
 ## 分支真相（先确认，最容易踩坑）
 
-- `v8` = 当前线上版本（v9.7.2），**一切改动在这里**。
+- `v8` = 当前线上版本（v9.8.0），**一切改动在这里**。
 - `main` = 已与 `v8` 同步（v9.5.0 起随版同步）。
 - GitHub 仓库已改名 `tag-pricing-calculator-V10`（旧地址 `tag-pricing-calculator-v5` 自动重定向，仍可访问）。
 - **Git 自动部署已断**（仓库改名导致 Cloudflare Pages Git 集成失效）：发版需 `wrangler pages deploy` 直传，详见 `docs/部署日志.md` 最新条目。
@@ -41,6 +41,7 @@ KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HT
 - **加页面/按钮**：`index.html` 结构 + `app.js` 对应 render / 事件绑定。
 - **改登录/权限**：前端 `js/auth.js`（门控/面板）+ 后端 `functions/`（角色/会话/默认数据）。
 - **改导入导出**：`app.js` 里 `downloadPaperTemplate` / `exportPaperExcel` / `importPaperExcel` / `parseShippingExcel`。
+- **改报价表组/报价表管理（在线修改）**：`data.js` 的 `addPriceListGroup` / `renamePriceListGroup` / `renamePriceList` / `movePriceListToGroup` / `applyPriceListData` + `app.js` 的 `renderOnlineManager` / `handleOnlineGroupsClick`；新增字段 `priceListGroups` 需同步备份/导入/快照/重置/云下发五条链路。
 - **默认管理员初始化**：首次部署空 KV 时，登录页填「初始化密钥」（部署变量 `SETUP_KEY`），系统自动创建 `ADMIN_USER`（账号 KOKA）/ `ADMIN_PASS`（密码 12345677）管理员并直接登录。
 
 ## 函数索引（按需 grep）

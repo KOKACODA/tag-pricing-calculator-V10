@@ -6,13 +6,13 @@
   <meta name="googlebot" content="noindex, nofollow">
   <!-- P0 安全：CSP 策略（v7.9：SheetJS 已本地化，script-src 仅允许 'self'，离线双击打开亦可用） -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';">
-<title>KOKALabel报价系统 v9.7.3</title>
-  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=9.7.3">
-  <link rel="icon" type="image/png" href="assets/favicon.png?v=9.7.3">
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=9.7.3">
-  <link rel="stylesheet" href="css/style.css?v=9.7.3">
+<title>KOKALabel报价系统 v9.8.0</title>
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=9.8.0">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=9.8.0">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=9.8.0">
+  <link rel="stylesheet" href="css/style.css?v=9.8.0">
   <!-- v9.5 账号访问控制：http 部署时强制登录（管理员/业务员/访客）；file:// 本地离线不启用 -->
-  <script src="js/auth.js?v=9.7.3"></script>
+  <script src="js/auth.js?v=9.8.0"></script>
 </head>
 <body>
   <!-- 顶部导航 -->
@@ -838,6 +838,7 @@
         <div class="tabs">
           <button class="tab active" data-tab="config">价格配置</button>
           <button class="tab" data-tab="history">报价历史</button>
+          <button class="tab" data-tab="online">在线修改</button>
           <button class="tab" data-tab="cloud">云同步 <span class="placeholder-badge">占位</span></button>
         </div>
 
@@ -918,6 +919,46 @@
             </table>
           </div>
           <div class="empty-state" id="historyEmpty" style="display: block;">暂无报价记录。</div>
+        </div>
+
+        <div class="tab-panel" id="panel-online">
+          <!-- 非管理员锁定提示（http 部署时显示） -->
+          <div class="online-lock-notice" id="onlineLockNotice" hidden>
+            <div class="feature-icon">🔒</div>
+            <div>
+              <div class="online-lock-title">在线修改仅管理员可用</div>
+              <div class="online-lock-desc">报价表组、报价表与模板数据修改会影响全员报价结果，请联系管理员操作。</div>
+            </div>
+          </div>
+
+          <div id="onlineManagerRoot">
+            <!-- 区块一：报价表组与报价表管理 -->
+            <div class="history-panel-heading">
+              <div>
+                <h3>报价表组与报价表管理</h3>
+                <p>新增 / 重命名报价表组与报价表，调整报价表归属；删除报价表会同时删除其纸张与工艺数据。</p>
+              </div>
+              <button class="btn sm" id="onlineAddGroupBtn">新增报价表组</button>
+            </div>
+            <div id="onlineGroupsWrap"></div>
+
+            <!-- 区块二：管理员按模板修改 -->
+            <div class="history-panel-heading online-section-gap">
+              <div>
+                <h3>按模板修改报价数据（管理员）</h3>
+                <p>选择目标报价表 → 导出模板（含现有数据）→ 按模板修改后导入，数据将直接覆盖该报价表。</p>
+              </div>
+            </div>
+            <div class="online-tpl-row">
+              <select id="onlineTplPriceList" class="online-tpl-select" aria-label="选择目标报价表"></select>
+              <div class="btn-group online-tpl-btns">
+                <button class="btn" id="onlineExportTplBtn">导出模板（含现有数据）</button>
+                <button class="btn secondary" id="onlineImportTplBtn">导入修改数据</button>
+                <input type="file" id="onlineImportTplFile" accept=".xlsx,.xls" hidden>
+              </div>
+            </div>
+            <div id="onlineTplStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
+          </div>
         </div>
 
         <div class="tab-panel" id="panel-cloud">
@@ -1009,7 +1050,7 @@
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">当前版本</div>
-              <div class="setting-desc">KOKALabel报价系统 v9.7.3</div>
+              <div class="setting-desc">KOKALabel报价系统 v9.8.0</div>
             </div>
             <div class="setting-control">
               <span class="placeholder-badge">正式版</span>
@@ -1137,7 +1178,7 @@
   </div>
 
   <!-- v7.9: SheetJS 本地化（离线双击打开亦可导出/导入 Excel），先于业务脚本加载，XLSX 全局可用 -->
-<script src="js/vendor/xlsx.full.min.js?v=9.7.3"></script>
-  <script src="js/data.js?v=9.7.3"></script>
-  <script src="js/app.js?v=9.7.3"></script>
+<script src="js/vendor/xlsx.full.min.js?v=9.8.0"></script>
+  <script src="js/data.js?v=9.8.0"></script>
+  <script src="js/app.js?v=9.8.0"></script>
 </body></html>
