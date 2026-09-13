@@ -10,6 +10,11 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
+// v10.6.0 整合:9.8「在线修改」/报价表组管理（F1~F3） 在 v10.6 已移除。本文件暂挂(skip),
+// 后续按 docs/功能差别标记-9.8与10.6.md 加回功能后,删除本变量即可恢复全部用例。
+const __skipReason = "SKIP: 9.8「在线修改」/报价表组管理（F1~F3）";
+
+
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDir, "..");
 
@@ -48,7 +53,7 @@ function loadDataModule(storage) {
 
 // ---------- 数据层：报价表组 CRUD ----------
 
-test("默认包含两个报价表组，getGroupName 可解析组名", () => {
+test("默认包含两个报价表组，getGroupName 可解析组名", { skip: __skipReason }, () => {
   const m = loadDataModule(createMemoryStorage());
   const groups = m.getPriceListGroups();
   assert.equal(groups.length, 2);
@@ -57,7 +62,7 @@ test("默认包含两个报价表组，getGroupName 可解析组名", () => {
   assert.equal(m.getGroupName("not_exist"), "未分组");
 });
 
-test("新增报价表组：成功持久化；重名与空名被拒绝", () => {
+test("新增报价表组：成功持久化；重名与空名被拒绝", { skip: __skipReason }, () => {
   const storage = createMemoryStorage();
   const m = loadDataModule(storage);
 
@@ -73,7 +78,7 @@ test("新增报价表组：成功持久化；重名与空名被拒绝", () => {
   assert.equal(m.getPriceListGroups().length, 3);
 });
 
-test("重命名报价表组：生效并同步 GROUP_NAME_MAP；重名/空名被拒绝", () => {
+test("重命名报价表组：生效并同步 GROUP_NAME_MAP；重名/空名被拒绝", { skip: __skipReason }, () => {
   const storage = createMemoryStorage();
   const m = loadDataModule(storage);
 
@@ -87,7 +92,7 @@ test("重命名报价表组：生效并同步 GROUP_NAME_MAP；重名/空名被�
   assert.equal(m.renamePriceListGroup("not_exist", "x").ok, false);
 });
 
-test("删除报价表组：空组可删；有报价表的组与最后一个组不可删", () => {
+test("删除报价表组：空组可删；有报价表的组与最后一个组不可删", { skip: __skipReason }, () => {
   const m = loadDataModule(createMemoryStorage());
 
   assert.equal(m.deletePriceListGroup("group1").ok, false); // group1 内有 priceList1
@@ -107,7 +112,7 @@ test("删除报价表组：空组可删；有报价表的组与最后一个组�
 
 // ---------- 数据层：报价表改名 / 移动 / 增删 ----------
 
-test("重命名报价表：生效并持久化；重名被拒绝", () => {
+test("重命名报价表：生效并持久化；重名被拒绝", { skip: __skipReason }, () => {
   const storage = createMemoryStorage();
   const m = loadDataModule(storage);
 
@@ -120,7 +125,7 @@ test("重命名报价表：生效并持久化；重名被拒绝", () => {
   assert.equal(m.renamePriceList("not_exist", "x").ok, false);
 });
 
-test("移动报价表到其他组：生效并持久化；非法组被拒绝", () => {
+test("移动报价表到其他组：生效并持久化；非法组被拒绝", { skip: __skipReason }, () => {
   const storage = createMemoryStorage();
   const m = loadDataModule(storage);
 
@@ -132,7 +137,7 @@ test("移动报价表到其他组：生效并持久化；非法组被拒绝", ()
   assert.equal(m.movePriceListToGroup("not_exist", "group1").ok, false);
 });
 
-test("addPriceList 支持指定组与不切换当前报价表（向后兼容旧调用）", () => {
+test("addPriceList 支持指定组与不切换当前报价表（向后兼容旧调用）", { skip: __skipReason }, () => {
   const m = loadDataModule(createMemoryStorage());
 
   // 旧调用（无 groupId/switchTo）：默认切到新表
@@ -146,7 +151,7 @@ test("addPriceList 支持指定组与不切换当前报价表（向后兼容旧�
   assert.equal(m.priceLists.find(p => p.id === id2).groupId, "group2");
 });
 
-test("applyPriceListData：原地覆盖目标报价表，不影响其他报价表", () => {
+test("applyPriceListData：原地覆盖目标报价表，不影响其他报价表", { skip: __skipReason }, () => {
   const m = loadDataModule(createMemoryStorage());
   const floor2CountBefore = m.getPapersByPriceList("priceList2").length;
   const floor1PapersBefore = m.getPapersByPriceList("priceList1");
@@ -189,7 +194,7 @@ test("applyPriceListData：原地覆盖目标报价表，不影响其他报价�
 
 // ---------- UI 层：结构 / 渲染 / 绑定存在性 ----------
 
-test("index.html：在线修改标签页位于报价历史与云同步之间", () => {
+test("index.html：在线修改标签页位于报价历史与云同步之间", { skip: __skipReason }, () => {
   const html = fs.readFileSync(path.join(projectRoot, "index.html"), "utf8");
   const tabHistory = html.indexOf('data-tab="history"');
   const tabOnline = html.indexOf('data-tab="online"');
@@ -204,7 +209,7 @@ test("index.html：在线修改标签页位于报价历史与云同步之间", (
   assert.ok(panelHistory < panelOnline && panelOnline < panelCloud);
 });
 
-test("app.js：在线修改渲染 / 权限门控 / 模板导入导出 / 事件绑定齐备", () => {
+test("app.js：在线修改渲染 / 权限门控 / 模板导入导出 / 事件绑定齐备", { skip: __skipReason }, () => {
   const src = fs.readFileSync(path.join(projectRoot, "js", "app.js"), "utf8");
   // 切到 online 标签时刷新渲染
   assert.match(src, /if \(tabName === "online"\) renderOnlineManager\(\)/);
@@ -226,7 +231,7 @@ test("app.js：在线修改渲染 / 权限门控 / 模板导入导出 / 事件�
   assert.match(src, /els\.onlineImportTplFile\.addEventListener\("change"/);
 });
 
-test("组配置全链路覆盖：备份/导入/快照/重置/云共享均包含 priceListGroups", () => {
+test("组配置全链路覆盖：备份/导入/快照/重置/云共享均包含 priceListGroups", { skip: __skipReason }, () => {
   const appSrc = fs.readFileSync(path.join(projectRoot, "js", "app.js"), "utf8");
   const authSrc = fs.readFileSync(path.join(projectRoot, "js", "auth.js"), "utf8");
   // 本地备份 / 完整配置 / 快照：保存与恢复
@@ -243,7 +248,7 @@ test("组配置全链路覆盖：备份/导入/快照/重置/云共享均包含 
   assert.match(authSrc, /data\.priceListGroups\) store\('priceListGroups', data\.priceListGroups\)/);
 });
 
-test("style.css：在线修改区块样式齐备且使用设计变量", () => {
+test("style.css：在线修改区块样式齐备且使用设计变量", { skip: __skipReason }, () => {
   const css = fs.readFileSync(path.join(projectRoot, "css", "style.css"), "utf8");
   [".online-lock-notice", ".online-group-card", ".online-group-head", ".online-current-badge",
    ".online-move-select", ".online-tpl-row", ".online-tpl-select", ".online-section-gap"

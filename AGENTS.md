@@ -4,14 +4,17 @@
 
 ## 一句话定位
 
-KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v9.8.0）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
+KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HTML + CSS + JS（无框架），数据存浏览器 `localStorage`；**线上部署（Cloudflare Pages）额外启用账号登录体系**（Pages Functions + KV，角色：管理员/业务员/访客，可上传全用户共享默认数据）。线上：https://tag-pricing-calculator-v5.pages.dev（v10.6.0）。本地 `file://` 双击打开仍可离线使用（不启用登录）。
+
+> **v10.6.0 整合说明**：本版 = 同事 v10.5 代码 + KOKA 品牌/图标（亲成改动全部回退）+ 9.8 登录体系（不使用 v10.5 登录）。9.8 独有功能（在线修改/统计报表等）已在 v10.6 移除，待后续版本加回，**唯一标记入口 = `docs/功能差别标记-9.8与10.6.md`**（加回一项即在文档标记）。
 
 ## 分支真相（先确认，最容易踩坑）
 
-- `v8` = 当前线上版本（v9.8.0），**一切改动在这里**。
-- `main` = 已与 `v8` 同步（v9.5.0 起随版同步）。
+- `v8` = 当前线上版本（v10.6.0），**一切改动在这里**。
+- `main` = 已与 `v8` 同步（v10.6.0）。
 - GitHub 仓库已改名 `tag-pricing-calculator-V10`（旧地址 `tag-pricing-calculator-v5` 自动重定向，仍可访问）。
 - **Git 自动部署已断**（仓库改名导致 Cloudflare Pages Git 集成失效）：发版需 `wrangler pages deploy` 直传，详见 `docs/部署日志.md` 最新条目。
+- `archive/` 为同事版归档：`同事V9系列（vice）/`（9.0~9.9，后缀 vice 与仓库 9.8 基线区分，仅记录不部署）与 `同事V10系列/`（V10.0~V10.5 快照）。
 - 旧 v7.10 谱系（独立 git 历史）经本地备份 tag `archive/v7.10-main` 追溯，完整记录见 `docs/项目历史与技术总档案.md`。
 
 ## 核心数据流（一句话）
@@ -32,7 +35,9 @@ KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HT
 | `css/style.css` | ~3250 | 改样式时才读，通常不动 |
 | `assets/` | 3 图标 | favicon / apple-touch-icon，无特殊情况不动 |
 | `js/vendor/xlsx.full.min.js` | 内置库 | **永不读**。SheetJS 已本地化，离线可用 |
-| `AGENTS.md` | ~75 | 本文档，接手必读 |
+| `archive/` | 同事版归档 | 版本记录用，通常不动；需要对比同事实现时读对应版本目录 |
+| `docs/功能差别标记-9.8与10.6.md` | ~70 | 9.8 独有功能待加回清单；加回 9.8 功能前必读 |
+| `AGENTS.md` | ~80 | 本文档，接手必读 |
 
 ## 常见改动怎么做（省 token 的关键）
 
@@ -41,7 +46,8 @@ KOKALabel 报价系统：吊牌/标签印刷报价计算器。核心为原生 HT
 - **加页面/按钮**：`index.html` 结构 + `app.js` 对应 render / 事件绑定。
 - **改登录/权限**：前端 `js/auth.js`（门控/面板）+ 后端 `functions/`（角色/会话/默认数据）。
 - **改导入导出**：`app.js` 里 `downloadPaperTemplate` / `exportPaperExcel` / `importPaperExcel` / `parseShippingExcel`。
-- **改报价表组/报价表管理（在线修改）**：`data.js` 的 `addPriceListGroup` / `renamePriceListGroup` / `renamePriceList` / `movePriceListToGroup` / `applyPriceListData` + `app.js` 的 `renderOnlineManager` / `handleOnlineGroupsClick`；新增字段 `priceListGroups` 需同步备份/导入/快照/重置/云下发五条链路。
+- **改报价表组/报价表管理（在线修改）**：⚠️ v10.6 **已移除**该功能（9.8 基线有：`renderOnlineManager` / `handleOnlineGroupsClick` / `applyPriceListData` + `priceListGroups` 字段）。要加回时先读 `docs/功能差别标记-9.8与10.6.md`（F1/F2/F3），并从 commit `c3bc57b`（9.8 基线）取实现。
+- **上传为默认数据（管理员）**：`app.js` `initDefaultDataUpload()`——把当前报价表/纸张/工艺/吊绳/邮费/客户等级上传为全用户共享默认数据（`/api/default` POST + KV），其他账号下次登录自动应用（`auth.js applyDefaultData`）。
 - **默认管理员初始化**：首次部署空 KV 时，登录页填「初始化密钥」（部署变量 `SETUP_KEY`），系统自动创建 `ADMIN_USER`（账号 KOKA）/ `ADMIN_PASS`（密码 12345677）管理员并直接登录。
 
 ## 函数索引（按需 grep）

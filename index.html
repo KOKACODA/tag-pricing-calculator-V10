@@ -5,282 +5,222 @@
   <meta name="robots" content="noindex, nofollow, noarchive">
   <meta name="googlebot" content="noindex, nofollow">
   <!-- P0 安全：CSP 策略（v7.9：SheetJS 已本地化，script-src 仅允许 'self'，离线双击打开亦可用） -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self';">
-<title>KOKALabel报价系统 v9.8.0</title>
-  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=9.8.0">
-  <link rel="icon" type="image/png" href="assets/favicon.png?v=9.8.0">
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=9.8.0">
-  <link rel="stylesheet" href="css/style.css?v=9.8.0">
-  <!-- v9.5 账号访问控制：http 部署时强制登录（管理员/业务员/访客）；file:// 本地离线不启用 -->
-  <script src="js/auth.js?v=9.8.0"></script>
+  <!-- v10.6.0：default-src/connect-src 放行 blob:，修复网页端 XLSX.writeFile 导出 Excel 被拦 -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:;">
+  <title>KOKALabel报价系统 v10.6.0</title>
+  <!-- v10.6.0：品牌图标保持 KOKA（assets/ 下的菱形铅笔标），不使用同事版的亲成图标 -->
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=10.6.0">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=10.6.0">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=10.6.0">
+  <link rel="stylesheet" href="css/style.css?v=10.6.0">
+  <!-- v9.3 账号访问控制：http 部署时强制登录（file:// 本地离线不启用） -->
+  <script src="js/auth.js?v=10.6.0"></script>
 </head>
 <body>
-  <!-- 顶部导航 -->
-  <nav class="navbar">
-    <div class="nav-inner">
+  <!-- v10.6.0：app-shell 包裹 = 左侧导航 + 主区（扁平化宽泛式架构） -->
+  <div class="app-shell">
+  <!-- 左侧导航栏（v10.6.0：导航从顶部移至左侧竖栏） -->
+  <nav class="sidenav">
+    <div class="sidenav-brand">KOKALabel<span class="sidenav-brand-sub">报价系统</span></div>
+    <div class="sidenav-menu">
       <button class="nav-btn active" data-page="calculator">智能报价计算器</button>
       <button class="nav-btn" data-page="table">报价表组查询</button>
       <button class="nav-btn" data-page="profile">个人主页</button>
     </div>
+    <button class="sidenav-personalize" id="personalizeBtn" type="button">Aa 个性化</button>
   </nav>
+
+  <!-- 个性化面板（v10.2：内联下拉面板，非弹窗，无遮罩，点外部关闭；所有用户可用，仅本机生效） -->
+  <div class="personalize-panel" id="personalizePanel">
+    <div class="personalize-head">
+      <span>个性化</span>
+      <button type="button" class="personalize-close" id="personalizeClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="personalize-body">
+      <div class="personalize-label">界面字体大小</div>
+      <div class="font-scale-group" id="fontScaleGroup">
+        <button type="button" data-scale="0.85">小</button>
+        <button type="button" data-scale="1">默认</button>
+        <button type="button" data-scale="1.15">大</button>
+        <button type="button" data-scale="1.3">特大</button>
+      </div>
+      <div class="font-scale-custom">
+        <input type="number" id="fontScaleInput" min="50" max="200" step="1" placeholder="自定义" aria-label="自定义缩放百分比">
+        <span class="font-scale-pct">%</span>
+        <button type="button" class="font-scale-apply" id="fontScaleApply">应用</button>
+      </div>
+      <div class="personalize-current" id="fontScaleCurrent">当前：100%</div>
+      <div class="personalize-defaults" id="fontScaleDefaults">系统默认字号：16px</div>
+      <button type="button" class="personalize-reset" id="fontScaleReset">恢复默认</button>
+      <div class="personalize-note">可输入 50~200 的百分比；仅调整本机显示，不影响其他设备与账号</div>
+    </div>
+  </div>
 
   <!-- 页面容器 -->
   <main class="pages">
     <!-- 页面1：智能报价计算器 -->
     <section class="page active" id="page-calculator">
-      <div class="card">
-        <div class="card-title-row">
-          <div class="card-title-main">
-            <h2 class="card-title">参数输入</h2>
-            <button type="button" id="defaultQuoteToggle" class="quote-visibility-toggle" role="switch" aria-checked="true" title="仅控制标准报价中的默认客户报价">
-              <span class="quote-visibility-label">默认报价</span>
-              <span class="quote-visibility-track" aria-hidden="true"><span class="quote-visibility-thumb"></span></span>
-              <span class="quote-visibility-state" id="defaultQuoteToggleState">显示</span>
-            </button>
+      <div class="calc-grid">
+      <!-- 左栏：参数表单（v10.6.0 平铺直列式） -->
+      <div class="calc-form-col">
+        <!-- 顶部工具条：计算模式 + 报价表切换 + 默认报价开关 -->
+        <div class="flat-toolbar">
+          <div class="calc-mode-switcher">
+            <button class="mode-btn active" data-mode="standard">标准报价</button>
+            <button class="mode-btn" data-mode="direct">直接系数计算</button>
           </div>
-          <div class="title-controls">
-            <div class="quick-price-switcher" title="快捷切换当前报价表">
-              <span class="switcher-label">报价表</span>
-              <select id="quickPriceListSelector" class="quick-price-list-selector"></select>
+          <div class="quick-price-switcher" title="快捷切换当前报价表">
+            <span class="switcher-label">报价表</span>
+            <select id="quickPriceListSelector" class="quick-price-list-selector"></select>
+          </div>
+          <button type="button" id="defaultQuoteToggle" class="quote-visibility-toggle" role="switch" aria-checked="true" title="仅控制标准报价中的默认客户报价">
+            <span class="quote-visibility-label">默认报价</span>
+            <span class="quote-visibility-track" aria-hidden="true"><span class="quote-visibility-thumb"></span></span>
+            <span class="quote-visibility-state" id="defaultQuoteToggleState">显示</span>
+          </button>
+        </div>
+
+        <!-- 区1：报价条件（档位 / 数量 / 收货地区 一行三列） -->
+        <div class="flat-section">
+          <div class="flat-section-title">报价条件</div>
+          <div class="flat-row3">
+            <div class="form-group">
+              <label for="tier">批量档位</label>
+              <select id="tier"><option value="">请选择批量档位</option><option value="500">500 张</option><option value="1000">1000 张</option><option value="2000">2000 张</option><option value="2500">2500 张</option><option value="3000">3000 张</option><option value="4000">4000 张</option><option value="5000">5000 张</option><option value="7500">7500 张</option><option value="10000">10000 张</option><option value="20000">20000 张</option><option value="30000">30000 张</option><option value="50000">50000 张</option></select>
             </div>
-            <div class="calc-mode-switcher">
-              <button class="mode-btn active" data-mode="standard">标准报价</button>
-              <button class="mode-btn" data-mode="direct">直接系数计算</button>
+            <div class="form-group">
+              <label for="sheetCount">纸张数量（张）</label>
+              <input type="number" id="sheetCount" min="1" step="1" value="2">
+            </div>
+            <div class="form-group">
+              <label for="region">收货地区</label>
+              <select id="region"><option value="">请选择地区</option><option value="region1">广东省内</option><option value="region2">江浙沪</option><option value="region3">其他省份</option></select>
             </div>
           </div>
         </div>
 
-        <div class="tier-row">
-          <div class="form-group">
-            <label for="tier">批量档位</label>
-            <select id="tier"><option value="">请选择批量档位</option><option value="500">500 张</option><option value="1000">1000 张</option><option value="2000">2000 张</option><option value="2500">2500 张</option><option value="3000">3000 张</option><option value="4000">4000 张</option><option value="5000">5000 张</option><option value="7500">7500 张</option><option value="10000">10000 张</option><option value="20000">20000 张</option><option value="30000">30000 张</option><option value="50000">50000 张</option></select>
-          </div>
-          <div class="form-group">
-            <label for="sheetCount">纸张数量（张）</label>
-            <input type="number" id="sheetCount" min="1" step="1" value="2">
-          </div>
-        </div>
-
-        <div class="form-group">
-          <label>纸张设置 <span class="hint">每张纸可设置不同展开尺寸</span></label>
+        <!-- 区2：纸张设置（预设 SKU 芯片直选） -->
+        <div class="flat-section">
+          <div class="flat-section-title">纸张设置 <span class="hint">每张纸可设置不同展开尺寸</span></div>
           <div id="sheetList" class="sheet-list"><div class="sheet-card">
           <div class="sheet-title">纸张 1</div>
           <div class="form-group">
-            <label>纸张材质 <span class="hint">点击展开，选择后自动收起</span></label>
-            <div class="paper-dropdown" data-sheet="0">
-              <div class="paper-trigger">
-                <div>
-                  <span class="paper-trigger-text">702铜版纸</span>
-                  <span class="paper-trigger-desc">1号报价表-3：702克 A级铜版纸 双面过哑胶（厚度0.85mm）</span>
-                </div>
-                <span class="paper-trigger-arrow"></span>
-              </div>
-              <div class="paper-options">
-                
-          <div class="paper-option" data-sheet="0" data-paper="paper1">
-            <span class="paper-name">350铜版纸</span>
-            <span class="paper-desc">1号报价表-1：350克 A级铜版纸 双面过哑胶（厚度0.38mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="0" data-paper="paper2">
-            <span class="paper-name">400铜版纸</span>
-            <span class="paper-desc">1号报价表-2：400克 A级铜版纸 双面过哑胶（厚度0.45mm）</span>
-          </div>
-        
-          <div class="paper-option active" data-sheet="0" data-paper="paper3">
-            <span class="paper-name">702铜版纸</span>
-            <span class="paper-desc">1号报价表-3：702克 A级铜版纸 双面过哑胶（厚度0.85mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="0" data-paper="paper4">
-            <span class="paper-name">606米白卡</span>
-            <span class="paper-desc">1号报价表-4：米白卡 606克（厚度0.8mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="0" data-paper="paper5">
-            <span class="paper-name">500白卡纸</span>
-            <span class="paper-desc">1号报价表-5：500克 白卡纸（厚度0.55mm）正面过哑胶</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="0" data-paper="paper6">
-            <span class="paper-name">海成专用</span>
-            <span class="paper-desc">1号报价表-6：400克米白卡 / 160克半透卡 / 200克合成纸（海成专用 / 撕不烂）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="0" data-paper="paper7">
-            <span class="paper-name">700布纹纸</span>
-            <span class="paper-desc">1号报价表-7：700克 A级布纹纸 双面过光油（厚度0.85mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="0" data-paper="paper8">
-            <span class="paper-name">600牛皮纸</span>
-            <span class="paper-desc">1号报价表-8：600克 A级牛皮纸（厚度0.80mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="0" data-paper="paper9">
-            <span class="paper-name">40C棉麻布</span>
-            <span class="paper-desc">1号报价表-9：棉麻布 40C 米白色</span>
-          </div>
-        
-              </div>
+            <label class="field-label">纸张材质 <span class="hint">点击芯片直选</span></label>
+            <div class="sku-grid" data-sheet="0">
+              <div class="paper-option" data-sheet="0" data-paper="paper1" title="1号报价表-1：350克 A级铜版纸 双面过哑胶（厚度0.38mm）"><span class="paper-name">350铜版纸</span></div>
+              <div class="paper-option" data-sheet="0" data-paper="paper2" title="1号报价表-2：400克 A级铜版纸 双面过哑胶（厚度0.45mm）"><span class="paper-name">400铜版纸</span></div>
+              <div class="paper-option active" data-sheet="0" data-paper="paper3" title="1号报价表-3：702克 A级铜版纸 双面过哑胶（厚度0.85mm）"><span class="paper-name">702铜版纸</span></div>
+              <div class="paper-option" data-sheet="0" data-paper="paper4" title="1号报价表-4：米白卡 606克（厚度0.8mm）"><span class="paper-name">606米白卡</span></div>
+              <div class="paper-option" data-sheet="0" data-paper="paper5" title="1号报价表-5：500克 白卡纸（厚度0.55mm）正面过哑胶"><span class="paper-name">500白卡纸</span></div>
+              <div class="paper-option" data-sheet="0" data-paper="paper6" title="1号报价表-6：400克米白卡 / 160克半透卡 / 200克合成纸（海成专用 / 撕不烂）"><span class="paper-name">海成专用</span></div>
+              <div class="paper-option" data-sheet="0" data-paper="paper7" title="1号报价表-7：700克 A级布纹纸 双面过光油（厚度0.85mm）"><span class="paper-name">700布纹纸</span></div>
+              <div class="paper-option" data-sheet="0" data-paper="paper8" title="1号报价表-8：600克 A级牛皮纸（厚度0.80mm）"><span class="paper-name">600牛皮纸</span></div>
+              <div class="paper-option" data-sheet="0" data-paper="paper9" title="1号报价表-9：棉麻布 40C 米白色"><span class="paper-name">40C棉麻布</span></div>
             </div>
           </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label>吊牌展开尺寸 <span class="hint">自动加 3mm 出血</span></label>
-            <div class="sheet-size-row">
-              <div class="form-group">
-                <label class="unit">宽 (mm)</label>
-                <input type="number" class="sheet-width" data-sheet="0" min="1" step="1" placeholder="55" value="">
-              </div>
-              <div class="form-group">
-                <label class="unit">长 (mm)</label>
-                <input type="number" class="sheet-length" data-sheet="0" min="1" step="1" placeholder="30" value="">
-              </div>
+          <div class="flat-inline-row">
+            <div class="form-group">
+              <label class="unit">宽 (mm)</label>
+              <input type="number" class="sheet-width" data-sheet="0" min="1" step="1" placeholder="55" value="">
+            </div>
+            <div class="form-group">
+              <label class="unit">长 (mm)</label>
+              <input type="number" class="sheet-length" data-sheet="0" min="1" step="1" placeholder="30" value="">
             </div>
           </div>
-          <div class="form-group collapsible collapsed" style="margin-bottom: 0; margin-top: 12px;">
-            <button type="button" class="collapse-toggle" aria-expanded="false"><span class="collapse-icon">▾</span>附加工艺 <span class="collapse-hint">点击展开</span></button>
-            <div class="collapse-body">
+          <div class="form-group">
+            <label class="field-label">附加工艺</label>
             <div class="craft-list">
               <label class="craft-item">
                 <input type="checkbox" value="craft3_1" data-sheet="0" data-craft="craft3_1">
                 <span>无色压凹（单面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_2" data-sheet="0" data-craft="craft3_2">
                 <span>套字压凹（单面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_3" data-sheet="0" data-craft="craft3_3">
                 <span>烫金 小面积（单面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_4" data-sheet="0" data-craft="craft3_4">
                 <span>烫金 小面积（双面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_5" data-sheet="0" data-craft="craft3_5">
                 <span>击凸（单面）</span>
               </label>
             </div>
-            </div>
           </div>
         </div><div class="sheet-card">
           <div class="sheet-title">纸张 2</div>
           <div class="form-group">
-            <label>纸张材质 <span class="hint">点击展开，选择后自动收起</span></label>
-            <div class="paper-dropdown" data-sheet="1">
-              <div class="paper-trigger">
-                <div>
-                  <span class="paper-trigger-text">702铜版纸</span>
-                  <span class="paper-trigger-desc">1号报价表-3：702克 A级铜版纸 双面过哑胶（厚度0.85mm）</span>
-                </div>
-                <span class="paper-trigger-arrow"></span>
-              </div>
-              <div class="paper-options">
-                
-          <div class="paper-option" data-sheet="1" data-paper="paper1">
-            <span class="paper-name">350铜版纸</span>
-            <span class="paper-desc">1号报价表-1：350克 A级铜版纸 双面过哑胶（厚度0.38mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="1" data-paper="paper2">
-            <span class="paper-name">400铜版纸</span>
-            <span class="paper-desc">1号报价表-2：400克 A级铜版纸 双面过哑胶（厚度0.45mm）</span>
-          </div>
-        
-          <div class="paper-option active" data-sheet="1" data-paper="paper3">
-            <span class="paper-name">702铜版纸</span>
-            <span class="paper-desc">1号报价表-3：702克 A级铜版纸 双面过哑胶（厚度0.85mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="1" data-paper="paper4">
-            <span class="paper-name">606米白卡</span>
-            <span class="paper-desc">1号报价表-4：米白卡 606克（厚度0.8mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="1" data-paper="paper5">
-            <span class="paper-name">500白卡纸</span>
-            <span class="paper-desc">1号报价表-5：500克 白卡纸（厚度0.55mm）正面过哑胶</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="1" data-paper="paper6">
-            <span class="paper-name">海成专用</span>
-            <span class="paper-desc">1号报价表-6：400克米白卡 / 160克半透卡 / 200克合成纸（海成专用 / 撕不烂）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="1" data-paper="paper7">
-            <span class="paper-name">700布纹纸</span>
-            <span class="paper-desc">1号报价表-7：700克 A级布纹纸 双面过光油（厚度0.85mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="1" data-paper="paper8">
-            <span class="paper-name">600牛皮纸</span>
-            <span class="paper-desc">1号报价表-8：600克 A级牛皮纸（厚度0.80mm）</span>
-          </div>
-        
-          <div class="paper-option" data-sheet="1" data-paper="paper9">
-            <span class="paper-name">40C棉麻布</span>
-            <span class="paper-desc">1号报价表-9：棉麻布 40C 米白色</span>
-          </div>
-        
-              </div>
+            <label class="field-label">纸张材质 <span class="hint">点击芯片直选</span></label>
+            <div class="sku-grid" data-sheet="1">
+              <div class="paper-option" data-sheet="1" data-paper="paper1" title="1号报价表-1：350克 A级铜版纸 双面过哑胶（厚度0.38mm）"><span class="paper-name">350铜版纸</span></div>
+              <div class="paper-option" data-sheet="1" data-paper="paper2" title="1号报价表-2：400克 A级铜版纸 双面过哑胶（厚度0.45mm）"><span class="paper-name">400铜版纸</span></div>
+              <div class="paper-option active" data-sheet="1" data-paper="paper3" title="1号报价表-3：702克 A级铜版纸 双面过哑胶（厚度0.85mm）"><span class="paper-name">702铜版纸</span></div>
+              <div class="paper-option" data-sheet="1" data-paper="paper4" title="1号报价表-4：米白卡 606克（厚度0.8mm）"><span class="paper-name">606米白卡</span></div>
+              <div class="paper-option" data-sheet="1" data-paper="paper5" title="1号报价表-5：500克 白卡纸（厚度0.55mm）正面过哑胶"><span class="paper-name">500白卡纸</span></div>
+              <div class="paper-option" data-sheet="1" data-paper="paper6" title="1号报价表-6：400克米白卡 / 160克半透卡 / 200克合成纸（海成专用 / 撕不烂）"><span class="paper-name">海成专用</span></div>
+              <div class="paper-option" data-sheet="1" data-paper="paper7" title="1号报价表-7：700克 A级布纹纸 双面过光油（厚度0.85mm）"><span class="paper-name">700布纹纸</span></div>
+              <div class="paper-option" data-sheet="1" data-paper="paper8" title="1号报价表-8：600克 A级牛皮纸（厚度0.80mm）"><span class="paper-name">600牛皮纸</span></div>
+              <div class="paper-option" data-sheet="1" data-paper="paper9" title="1号报价表-9：棉麻布 40C 米白色"><span class="paper-name">40C棉麻布</span></div>
             </div>
           </div>
-          <div class="form-group" style="margin-bottom: 0;">
-            <label>吊牌展开尺寸 <span class="hint">自动加 3mm 出血</span></label>
-            <div class="sheet-size-row">
-              <div class="form-group">
-                <label class="unit">宽 (mm)</label>
-                <input type="number" class="sheet-width" data-sheet="1" min="1" step="1" placeholder="55" value="">
-              </div>
-              <div class="form-group">
-                <label class="unit">长 (mm)</label>
-                <input type="number" class="sheet-length" data-sheet="1" min="1" step="1" placeholder="30" value="">
-              </div>
+          <div class="flat-inline-row">
+            <div class="form-group">
+              <label class="unit">宽 (mm)</label>
+              <input type="number" class="sheet-width" data-sheet="1" min="1" step="1" placeholder="55" value="">
+            </div>
+            <div class="form-group">
+              <label class="unit">长 (mm)</label>
+              <input type="number" class="sheet-length" data-sheet="1" min="1" step="1" placeholder="30" value="">
             </div>
           </div>
-          <div class="form-group collapsible collapsed" style="margin-bottom: 0; margin-top: 12px;">
-            <button type="button" class="collapse-toggle" aria-expanded="false"><span class="collapse-icon">▾</span>附加工艺 <span class="collapse-hint">点击展开</span></button>
-            <div class="collapse-body">
+          <div class="form-group">
+            <label class="field-label">附加工艺</label>
             <div class="craft-list">
               <label class="craft-item">
                 <input type="checkbox" value="craft3_1" data-sheet="1" data-craft="craft3_1">
                 <span>无色压凹（单面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_2" data-sheet="1" data-craft="craft3_2">
                 <span>套字压凹（单面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_3" data-sheet="1" data-craft="craft3_3">
                 <span>烫金 小面积（单面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_4" data-sheet="1" data-craft="craft3_4">
                 <span>烫金 小面积（双面）</span>
               </label>
-            
+
               <label class="craft-item">
                 <input type="checkbox" value="craft3_5" data-sheet="1" data-craft="craft3_5">
                 <span>击凸（单面）</span>
               </label>
             </div>
-            </div>
           </div>
         </div></div>
         </div>
 
-        <div class="form-group collapsible collapsed">
-          <button type="button" class="collapse-toggle rope-toggle" aria-expanded="false"><span class="collapse-icon">▾</span>吊绳类型 <span class="collapse-hint">点击展开</span></button>
-          <div class="collapse-body">
+        <!-- 区3：吊绳类型（v10.1 可折叠，默认折叠） -->
+        <div class="flat-section rope-fold collapsed" id="ropeFold">
+          <div class="flat-section-title rope-fold-head" id="ropeFoldHead" role="button" tabindex="0" aria-expanded="false" title="点击展开/收起">
+            <span class="fold-arrow">▸</span>吊绳类型
+            <span class="fold-summary" id="ropeFoldSummary"></span>
+          </div>
           <div id="rope" class="rope-list">
         <label class="rope-item">
           <input type="radio" name="rope" value="rope0">
@@ -417,26 +357,27 @@
           <span>防拆扣</span>
         </label>
       </div>
-          </div>
         </div>
 
-        <div class="form-group">
-          <label for="region">收货地区</label>
-          <select id="region"><option value="">请选择地区</option><option value="region1">广东省内</option><option value="region2">江浙沪</option><option value="region3">其他省份</option></select>
+        <div clas        </div>
         </div>
       </div>
 
+      <!-- 右栏：报价结果（v10.6.0 sticky 跟随） -->
+      <div class="calc-result-col">
       <div class="card">
         <h2 class="card-title">报价结果</h2>
         <div class="result-section" id="resultArea">
           <div class="result-row" style="flex-direction:column;align-items:flex-start;">
             <span class="result-label">各纸张尺寸 / 面积 / 代码</span>
-            <table class="sheet-result-table" id="resSheetTable">
-              <thead>
-                <tr><th>纸张</th><th>尺寸 (mm)</th><th>面积 (mm²)</th><th>代码</th><th>单价</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
+            <div class="result-table-scroll">
+              <table class="sheet-result-table" id="resSheetTable">
+                <thead>
+                  <tr><th>纸张</th><th>尺寸 (mm)</th><th>面积 (mm²)</th><th>代码</th><th>单价</th></tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
           </div>
           <div class="result-row">
             <span class="result-label">匹配批量档位</span>
@@ -547,12 +488,14 @@
           </section>
         </div>
       </div>
+      </div>
+      </div>
     </section>
 
     <!-- 页面2：1号报价表查询 -->
     <section class="page" id="page-table">
       <div class="card">
-        <h2 class="card-title">报价表组查询 <button class="btn sm" id="uploadDefaultBtn" style="display:none;float:right;background:#059669;color:#fff;" title="把当前纸张/工艺/吊绳/邮费/客户等级配置上传为全用户共享的默认数据（仅管理员）">上传为默认数据</button></h2>
+        <h2 class="card-title">报价表组查询</h2>
 
         <!-- 报价表组切换器 -->
         <div class="price-list-switcher">
@@ -572,6 +515,11 @@
           <select id="paperSelector" class="paper-selector"></select>
         </div>
 
+        <!-- v10.3：表头内联编辑提示（仅超级管理员可见） -->
+        <div class="table-edit-hint" id="tableEditHint" style="display:none;">
+          表头/行列编辑：点击档位表头可改档位名，✕ 删除档位列，表头末尾 ＋ 新增档位列；点击代码/面积单元格可修改，行尾 ✕ 删除规格行。修改仅存本地，核对后点「↑ 保存为全局默认」上传云端。
+        </div>
+
         <div class="table-wrap">
           <table id="priceTable">
             <thead>
@@ -585,6 +533,11 @@
               <!-- 动态行 -->
             </tbody>
           </table>
+        </div>
+
+        <!-- v10.3：新增规格行（仅超级管理员可见） -->
+        <div class="table-row-actions" id="specRowActions" style="display:none;">
+          <button type="button" class="btn sm" id="addSpecRowBtn">＋ 新增规格行</button>
         </div>
 
         <div class="table-wrap" style="margin-top:20px;">
@@ -681,7 +634,7 @@
       <div class="profile-hero">
         <div class="avatar">海</div>
         <div class="profile-meta">
-          <h3>KOKALabel <span class="placeholder-badge">占位 UI</span></h3>
+          <h3>KOKA <span class="placeholder-badge">占位 UI</span></h3>
           <p>管理员 · 本地配置 · 下次打开保留</p>
         </div>
       </div>
@@ -775,6 +728,42 @@
           </div>
           <div class="setting-row">
             <div class="setting-info">
+              <div class="setting-label">默认尺寸类型</div>
+              <div class="setting-desc">计算器中所有纸张的尺寸解释方式（全局生效）</div>
+            </div>
+            <div class="setting-control">
+              <select id="defaultSizeType"><option value="single">单张尺寸</option><option value="spread">展开尺寸</option></select>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">UI 架构模式</div>
+              <div class="setting-desc">跟随设备：手机用垂直纵深式，电脑/平板用扁平化宽泛式；也可手动固定（本机生效，立即保存）</div>
+            </div>
+            <div class="setting-control">
+              <select id="uiLayoutMode"><option value="auto">跟随设备（推荐）</option><option value="flat">扁平化宽泛式</option><option value="vertical">垂直纵深式</option></select>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">纸张材质序号</div>
+              <div class="setting-desc">计算器纸张材质芯片前是否显示编号（如 1. 350铜版纸），默认隐藏</div>
+            </div>
+            <div class="setting-control">
+              <select id="hidePaperIndex"><option value="hide">隐藏序号</option><option value="show">显示序号</option></select>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">纸张材质选择模式</div>
+              <div class="setting-desc">计算器纸张材质的呈现方式：芯片平铺直选 / 下拉框（支持模糊搜索）</div>
+            </div>
+            <div class="setting-control">
+              <select id="paperSelectMode"><option value="grid">芯片平铺（默认）</option><option value="dropdown">下拉框搜索</option></select>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
               <div class="setting-label">默认吊绳类型</div>
               <div class="setting-desc">打开计算器时吊绳单选默认选中</div>
             </div>
@@ -789,18 +778,6 @@
             </div>
             <div class="setting-control">
               <select id="defaultPaper"><option value="">跟随默认（1号报价表-3）</option><option value="paper1">350铜版纸</option><option value="paper2">400铜版纸</option><option value="paper3">702铜版纸</option><option value="paper4">606米白卡</option><option value="paper5">500白卡纸</option><option value="paper6">海成专用</option><option value="paper7">700布纹纸</option><option value="paper8">600牛皮纸</option><option value="paper9">40C棉麻布</option></select>
-            </div>
-          </div>
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">默认纸张尺寸类型</div>
-              <div class="setting-desc">新建一张纸时默认选择单张尺寸或展开尺寸</div>
-            </div>
-            <div class="setting-control">
-              <select id="defaultSizeType">
-                <option value="single" selected>单张尺寸</option>
-                <option value="spread">展开尺寸</option>
-              </select>
             </div>
           </div>
         </div>
@@ -834,15 +811,14 @@
       </div>
 
       <div class="card">
-        <h2 class="card-title">数据管理</h2>
+        <h2 class="card-title">数据管理 <button class="btn sm" id="uploadDefaultBtn" style="display:none;float:right;background:#059669;color:#fff;" title="把当前纸张/工艺/吊绳/邮费/客户等级配置上传为全用户共享的默认数据（仅管理员）">上传为默认数据</button></h2>
         <div class="tabs">
-          <button class="tab active" data-tab="config">价格配置</button>
+          <button class="tab active" data-tab="snapshot">本地快照</button>
           <button class="tab" data-tab="history">报价历史</button>
-          <button class="tab" data-tab="online">在线修改</button>
           <button class="tab" data-tab="cloud">云同步 <span class="placeholder-badge">占位</span></button>
         </div>
 
-        <div class="tab-panel active" id="panel-config">
+        <div class="tab-panel active" id="panel-snapshot">
           <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
             <div>
               <h3 style="font-size:14px;color:var(--brand-dark);margin:0;">价格配置导入 / 导出</h3>
@@ -900,6 +876,20 @@
             </div>
             <div id="localBackupStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
           </div>
+          <div style="margin-top:18px;">
+            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">本地快照列表</h4>
+            <table class="data-table" id="snapshotTable" style="display: none;">
+              <thead>
+                <tr><th>快照名</th><th>时间</th><th>操作</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="empty-state" id="snapshotEmpty" style="display: block;">暂无快照，点击下方按钮创建。</div>
+            <div class="btn-group">
+              <button class="btn secondary sm" id="createSnapshotBtn">+ 创建当前快照</button>
+              <button class="btn danger sm" id="clearSnapshotBtn">清空快照</button>
+            </div>
+          </div>
         </div>
 
         <div class="tab-panel" id="panel-history">
@@ -919,46 +909,6 @@
             </table>
           </div>
           <div class="empty-state" id="historyEmpty" style="display: block;">暂无报价记录。</div>
-        </div>
-
-        <div class="tab-panel" id="panel-online">
-          <!-- 非管理员锁定提示（http 部署时显示） -->
-          <div class="online-lock-notice" id="onlineLockNotice" hidden>
-            <div class="feature-icon">🔒</div>
-            <div>
-              <div class="online-lock-title">在线修改仅管理员可用</div>
-              <div class="online-lock-desc">报价表组、报价表与模板数据修改会影响全员报价结果，请联系管理员操作。</div>
-            </div>
-          </div>
-
-          <div id="onlineManagerRoot">
-            <!-- 区块一：报价表组与报价表管理 -->
-            <div class="history-panel-heading">
-              <div>
-                <h3>报价表组与报价表管理</h3>
-                <p>新增 / 重命名报价表组与报价表，调整报价表归属；删除报价表会同时删除其纸张与工艺数据。</p>
-              </div>
-              <button class="btn sm" id="onlineAddGroupBtn">新增报价表组</button>
-            </div>
-            <div id="onlineGroupsWrap"></div>
-
-            <!-- 区块二：管理员按模板修改 -->
-            <div class="history-panel-heading online-section-gap">
-              <div>
-                <h3>按模板修改报价数据（管理员）</h3>
-                <p>选择目标报价表 → 导出模板（含现有数据）→ 按模板修改后导入，数据将直接覆盖该报价表。</p>
-              </div>
-            </div>
-            <div class="online-tpl-row">
-              <select id="onlineTplPriceList" class="online-tpl-select" aria-label="选择目标报价表"></select>
-              <div class="btn-group online-tpl-btns">
-                <button class="btn" id="onlineExportTplBtn">导出模板（含现有数据）</button>
-                <button class="btn secondary" id="onlineImportTplBtn">导入修改数据</button>
-                <input type="file" id="onlineImportTplFile" accept=".xlsx,.xls" hidden>
-              </div>
-            </div>
-            <div id="onlineTplStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
-          </div>
         </div>
 
         <div class="tab-panel" id="panel-cloud">
@@ -990,34 +940,6 @@
       </div>
 
       <div class="card">
-        <h2 class="card-title">快照与统计报表</h2>
-        <div class="stats-snapshot-layout">
-          <div class="snapshot-box">
-            <h4 style="font-size:13px;color:var(--brand-dark);margin:0 0 8px;">本地快照列表</h4>
-            <table class="data-table" id="snapshotTable" style="display: none;">
-              <thead>
-                <tr><th>快照名</th><th>时间</th><th>操作</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-            <div class="empty-state" id="snapshotEmpty" style="display: block;">暂无快照，点击下方按钮创建。</div>
-            <div class="btn-group">
-              <button class="btn secondary sm" id="createSnapshotBtn">+ 创建当前快照</button>
-              <button class="btn danger sm" id="clearSnapshotBtn">清空快照</button>
-              <button class="btn sm" id="exportSnapshotsBtn">导出快照</button>
-            </div>
-          </div>
-          <div class="stats-box">
-            <div class="stats-box-header">
-              <h4 style="font-size:13px;color:var(--brand-dark);margin:0;">统计报表</h4>
-              <button class="btn sm" id="exportStatsBtn">导出统计报表</button>
-            </div>
-            <div id="statsContent" class="stats-content"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
         <h2 class="card-title">更多功能</h2>
         <div class="feature-grid">
           <div class="feature-card" data-toast="客户管理功能占位">
@@ -1029,6 +951,11 @@
             <div class="feature-icon">📦</div>
             <div class="feature-title">订单管理</div>
             <div class="feature-desc">从报价一键生成订单、状态跟踪</div>
+          </div>
+          <div class="feature-card" data-toast="统计报表功能占位">
+            <div class="feature-icon">📊</div>
+            <div class="feature-title">统计报表</div>
+            <div class="feature-desc">月度报价次数、热销尺寸、利润分析</div>
           </div>
           <div class="feature-card" data-toast="价格趋势功能占位">
             <div class="feature-icon">📈</div>
@@ -1050,7 +977,7 @@
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">当前版本</div>
-              <div class="setting-desc">KOKALabel报价系统 v9.8.0</div>
+              <div class="setting-desc">KOKALabel报价系统 v10.6.0</div>
             </div>
             <div class="setting-control">
               <span class="placeholder-badge">正式版</span>
@@ -1081,20 +1008,11 @@
         <h2 class="card-title" style="color: var(--danger); border-bottom-color: var(--danger-border);">全局恢复</h2>
         <div class="setting-row">
           <div class="setting-info">
-            <div class="setting-label" style="color: var(--danger);">一键恢复全局默认设置（保留数据）</div>
-            <div class="setting-desc">恢复到出厂默认状态（纸张 / 工艺 / 吊绳 / 邮费 / 客户等级 / 公司信息 / 个人偏好）。报价历史与本地快照不受影响。操作不可撤销。</div>
+            <div class="setting-label" style="color: var(--danger);">一键恢复全局默认设置</div>
+            <div class="setting-desc">清除浏览器中所有本地配置（纸张 / 工艺 / 吊绳 / 客户等级 / 公司信息 / 个人偏好），恢复到出厂默认状态。报价历史与本地快照不受影响。操作不可撤销。</div>
           </div>
           <div class="setting-control">
             <button class="btn danger sm" id="resetAllSettingsBtn">一键恢复全局默认</button>
-          </div>
-        </div>
-        <div class="setting-row" style="border-top:1px solid var(--danger-border);padding-top:16px;">
-          <div class="setting-info">
-            <div class="setting-label" style="color: var(--danger);">一键恢复默认并清除缓存</div>
-            <div class="setting-desc">恢复到出厂默认状态，并删除报价历史与本地快照（清空缓存）。此操作会彻底清空业务数据，不可撤销。</div>
-          </div>
-          <div class="setting-control">
-            <button class="btn danger sm" id="fullResetAndClearCacheBtn">恢复默认并清除缓存</button>
           </div>
         </div>
       </div>
@@ -1102,6 +1020,7 @@
 
     <!-- 页面4：数据管理 + 页面5：更多 已合并到 个人主页（page-profile）中 -->
   </main>
+  </div>
 
   <!-- 报价历史详情 -->
   <dialog class="history-dialog" id="historyDetailDialog" aria-labelledby="historyDetailTitle">
@@ -1166,19 +1085,8 @@
   <!-- 提示条 -->
   <div class="toast" id="toast"></div>
 
-  <!-- P1 访问控制：前端口令门遮罩（ACCESS_ENABLED=true 时由 app.js 显示） -->
-  <div class="access-gate" id="access-gate" hidden>
-    <div class="access-gate-card">
-      <h2 class="access-gate-title">KOKALabel 报价系统</h2>
-      <p class="access-gate-desc">本系统包含价格数据，请输入访问口令</p>
-      <input type="password" id="access-gate-input" class="access-gate-input" placeholder="访问口令" autocomplete="off">
-      <button type="button" id="access-gate-submit" class="access-gate-btn">进入系统</button>
-      <p class="access-gate-error" id="access-gate-error" role="alert"></p>
-    </div>
-  </div>
-
   <!-- v7.9: SheetJS 本地化（离线双击打开亦可导出/导入 Excel），先于业务脚本加载，XLSX 全局可用 -->
-<script src="js/vendor/xlsx.full.min.js?v=9.8.0"></script>
-  <script src="js/data.js?v=9.8.0"></script>
-  <script src="js/app.js?v=9.8.0"></script>
+  <script src="js/vendor/xlsx.full.min.js?v=10.6.0"></script>
+  <script src="js/data.js?v=10.6.0"></script>
+  <script src="js/app.js?v=10.6.0"></script>
 </body></html>

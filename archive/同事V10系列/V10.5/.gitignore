@@ -1,0 +1,5 @@
+_backup_v8/
+*.log
+.DS_Store
+Thumbs.db
+.wrangler/

@@ -20,6 +20,10 @@
     user: null,
     loginAt: null,
     roleLabel: function (r) { return r === 'admin' ? '管理员' : r === 'sales' ? '业务员' : '访客'; },
+    // v10.6.0 兼容补丁：供 app.js（源自 v10.5 同事版）调用的角色能力判定
+    roleNum: function () { return ({ guest: 0, sales: 1, admin: 3 }[KOKA.user ? KOKA.user.role : 'guest'] ?? 0); },
+    canEditQuote: function () { return !!(KOKA.user && KOKA.user.role === 'admin'); }, // 9.8 体系：admin 即超级管理员
+    toast: function (msg) { if (typeof showToast === 'function') showToast(msg); }, // 转发 app.js 的 toast 实现
     api: async function (url, opts = {}) {
       const headers = Object.assign({}, opts.headers || {});
       if (token) headers['Authorization'] = 'Bearer ' + token;

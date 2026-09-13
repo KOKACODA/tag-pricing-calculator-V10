@@ -2,6 +2,9 @@
 node_modules/
 .wrangler/
 
+# 版本整合临时备份
+_backup_v8/
+
 # 系统与缓存文件
 .DS_Store
 Thumbs.db

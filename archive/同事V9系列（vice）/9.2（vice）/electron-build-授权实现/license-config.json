@@ -1,0 +1,7 @@
+{
+  "enabled": false,
+  "apiBase": "",
+  "brand": "KOKALabel 报价系统",
+  "version": "9.2.0",
+  "note": "enabled=false 时跳过授权检查（后端未就绪阶段用）；要启用授权：置 enabled=true 并填 apiBase（你的后端地址，如 https://your-domain.com）"
+}

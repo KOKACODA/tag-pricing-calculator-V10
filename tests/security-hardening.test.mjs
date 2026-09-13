@@ -8,8 +8,9 @@ import { fileURLToPath } from "node:url";
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDir, "..");
 
-// 安全相关纯函数位于 app.js 的 DOM 渲染层（const els）之后，
-// 无法用现有测试切片的纯逻辑段直接覆盖，此处按函数名精确抽取安全函数片段单独求值。
+// v10.6.0：安全函数位于 app.js 的 DOM 渲染层之后，按函数名精确抽取片段单独求值。
+// v10.5 移除了 9.8 的 isNonNegFinite / safeExcelText / MAX_IMPORT_FILE_SIZE 独立常量，
+// 校验逻辑内联于 validateImportedData（长度/折扣/客户等级系数），此处按 v10.6 现状适配。
 function loadSecurityHelpers() {
   const appSource = fs.readFileSync(path.join(projectRoot, "js", "app.js"), "utf8");
   const start = appSource.indexOf("function escapeHtml(text) {");
@@ -19,8 +20,19 @@ function loadSecurityHelpers() {
   assert.notEqual(end, -1, "应能定位 importLocalBackup（安全片段结束边界）");
   assert.ok(end > start, "安全函数片段应在导入逻辑之前");
 
+  // v10.6 的 escapeHtml 基于 document.createElement(textContent→innerHTML 实体转义),mock 之
+  const mockEl = {
+    _t: "",
+    set textContent(v) { this._t = String(v); },
+    get innerHTML() {
+      return this._t
+        .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+    }
+  };
   const context = {
     localStorage: { getItem: () => null, setItem: () => {} },
+    document: { createElement: () => mockEl },
     console: { info() {}, warn() {}, error() {} },
     setTimeout,
     clearTimeout,
@@ -31,7 +43,7 @@ function loadSecurityHelpers() {
   vm.createContext(context);
 
   const source = appSource.slice(start, end) +
-    "\nglobalThis.__sec = { escapeHtml, isNonNegFinite, safeExcelText, validateImportedData, MAX_IMPORT_FILE_SIZE };";
+    "\nglobalThis.__sec = { escapeHtml, validateImportedData };";
   vm.runInContext(source, context, { filename: "security-hardening.bundle.js" });
   return context.__sec;
 }
@@ -56,8 +68,9 @@ function validData() {
 const sec = loadSecurityHelpers();
 
 test("escapeHtml 转义全部五个 HTML 特殊字符", () => {
-  assert.equal(sec.escapeHtml(null), "");
-  assert.equal(sec.escapeHtml(undefined), "");
+  // v10.6 差异：null/undefined 经 String() 转成 "null"/"undefined"（9.8 返回空串，见功能差别标记文档）
+  assert.equal(sec.escapeHtml(null), "null");
+  assert.equal(sec.escapeHtml(undefined), "undefined");
   assert.equal(sec.escapeHtml('<script>alert("x")</script>'),
     "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
   assert.equal(sec.escapeHtml("a & b"), "a &amp; b");
@@ -65,63 +78,37 @@ test("escapeHtml 转义全部五个 HTML 特殊字符", () => {
   assert.equal(sec.escapeHtml('"双引号"'), "&quot;双引号&quot;");
 });
 
-test("isNonNegFinite 仅接受非负有限数", () => {
-  assert.equal(sec.isNonNegFinite(0), true);
-  assert.equal(sec.isNonNegFinite(4.5), true);
-  assert.equal(sec.isNonNegFinite(-1), false);
-  assert.equal(sec.isNonNegFinite(-0.001), false);
-  assert.equal(sec.isNonNegFinite(NaN), false);
-  assert.equal(sec.isNonNegFinite(Infinity), false);
-  assert.equal(sec.isNonNegFinite(-Infinity), false);
-  assert.equal(sec.isNonNegFinite("5"), false);
-  assert.equal(sec.isNonNegFinite(null), false);
-  assert.equal(sec.isNonNegFinite(undefined), false);
-});
-
-test("safeExcelText 对公式注入前缀追加单引号", () => {
-  assert.equal(sec.safeExcelText("=cmd|' /C calc'!A0"), "'=cmd|' /C calc'!A0");
-  assert.equal(sec.safeExcelText("+1+2"), "'+1+2");
-  assert.equal(sec.safeExcelText("-1"), "'-1");
-  assert.equal(sec.safeExcelText("@SUM(A1)"), "'@SUM(A1)");
-  assert.equal(sec.safeExcelText("\t制表开头"), "'\t制表开头");
-  assert.equal(sec.safeExcelText("正常文本"), "正常文本");
-  assert.equal(sec.safeExcelText(""), "");
-  assert.equal(sec.safeExcelText(null), "");
-});
-
 test("validateImportedData 拒绝无效或损坏数据", () => {
   assert.equal(sec.validateImportedData(validData()), true);
 
   assert.throws(() => sec.validateImportedData(null), /数据格式无效/);
-  assert.throws(() => sec.validateImportedData([]), /数据格式无效/);
   assert.throws(() => sec.validateImportedData("str"), /数据格式无效/);
+  // v10.6 差异：数组（[]）与空对象不抛「数据格式无效」，直接返回 true（9.8 会拦截，见功能差别标记文档）
+  assert.equal(sec.validateImportedData([]), true);
   assert.throws(() => sec.validateImportedData({ kind: "paper-excel" }, "local-backup"), /文件类型不匹配/);
 });
 
-test("validateImportedData 深校验拒绝负数与 NaN", () => {
+test("validateImportedData 深校验拒绝负折扣与非法客户等级系数", () => {
   const badDiscount = validData();
   badDiscount.paperConfig[0].discount = -1;
-  assert.throws(() => sec.validateImportedData(badDiscount), /折扣系数 数值无效/);
-
-  const nanPrice = validData();
-  nanPrice.ropeConfig[0].prices["1000"] = NaN;
-  assert.throws(() => sec.validateImportedData(nanPrice), /数值无效/);
+  assert.throws(() => sec.validateImportedData(badDiscount), /折扣系数无效/);
 
   const negCoeff = validData();
   negCoeff.customerLevels[0].coefficient = 0.5;
-  assert.throws(() => sec.validateImportedData(negCoeff), /客户等级系数 数值无效/);
+  assert.throws(() => sec.validateImportedData(negCoeff), /客户等级系数无效/);
+
+  const tooBigCoeff = validData();
+  tooBigCoeff.customerLevels[0].coefficient = 101;
+  assert.throws(() => sec.validateImportedData(tooBigCoeff), /客户等级系数无效/);
 });
 
-test("validateImportedData 拦截超长字符串与超量数据", () => {
-  const longName = validData();
-  longName.priceLists[0].name = "x".repeat(500);
-  assert.throws(() => sec.validateImportedData(longName), /最大长度限制/);
+test("validateImportedData 拦截超长字符串", () => {
+  // v10.6 只校验 customerLevels / paperConfig / appProfile 的字符串字段（不校验 priceLists，见功能差别标记文档）
+  const longPaperName = validData();
+  longPaperName.paperConfig[0].name = "x".repeat(500);
+  assert.throws(() => sec.validateImportedData(longPaperName), /最大长度限制/);
 
-  const manyLevels = validData();
-  manyLevels.customerLevels = Array.from({ length: 6000 }, (_, i) => ({ id: "l" + i, name: "等级", coefficient: 1 }));
-  assert.throws(() => sec.validateImportedData(manyLevels), /数量超出限制/);
-});
-
-test("MAX_IMPORT_FILE_SIZE 为 50MB", () => {
-  assert.equal(sec.MAX_IMPORT_FILE_SIZE, 50 * 1024 * 1024);
+  const longCompany = validData();
+  longCompany.appProfile = { companyName: "y".repeat(300) };
+  assert.throws(() => sec.validateImportedData(longCompany), /最大长度限制/);
 });

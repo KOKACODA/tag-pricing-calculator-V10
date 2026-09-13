@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · KOKALabel 报价系统</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Microsoft YaHei",system-ui,sans-serif; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:linear-gradient(135deg,#1e3a8a 0%,#2563eb 60%,#3b82f6 100%); }
+  .card { background:#fff; width:400px; border-radius:16px; padding:38px 36px 30px; box-shadow:0 20px 50px rgba(0,0,0,.25); }
+  .logo { text-align:center; }
+  .logo .t { font-size:26px; font-weight:800; color:#1e3a8a; letter-spacing:1px; }
+  .logo .s { font-size:13px; color:#64748b; margin-top:6px; }
+  .field { margin-top:20px; }
+  .field label { display:block; font-size:13px; color:#475569; margin-bottom:6px; font-weight:600; }
+  .field input { width:100%; padding:12px 14px; border:2px solid #cbd5e1; border-radius:10px; font-size:15px; outline:none; transition:.2s; }
+  .field input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .btn { width:100%; margin-top:24px; padding:13px; font-size:16px; font-weight:700; color:#fff; background:#2563eb; border:none; border-radius:10px; cursor:pointer; transition:.2s; }
+  .btn:hover { background:#1d4ed8; }
+  .btn:disabled { background:#93c5fd; cursor:not-allowed; }
+  .msg { margin-top:16px; font-size:14px; text-align:center; min-height:20px; }
+  .msg.err { color:#dc2626; } .msg.ok { color:#059669; font-weight:700; }
+  .tip { margin-top:18px; text-align:center; font-size:12px; color:#94a3b8; line-height:1.7; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="t">KOKALabel</div>
+    <div class="s">吊牌报价系统 · 账号登录</div>
+  </div>
+  <div class="field"><label>账号</label><input id="username" autocomplete="username" placeholder="请输入账号"></div>
+  <div class="field"><label>密码</label><input id="password" type="password" autocomplete="current-password" placeholder="请输入密码"></div>
+  <button class="btn" id="loginBtn">登 录</button>
+  <div class="msg" id="msg"></div>
+  <div class="tip">本系统为授权使用，账号由管理员分配<br>使用期限 / 停用请联系管理员</div>
+</div>
+<script>
+  const $u=document.getElementById('username'), $p=document.getElementById('password'), $m=document.getElementById('msg'), $b=document.getElementById('loginBtn');
+  const returnTo = new URLSearchParams(location.search).get('return') || '/';
+  function setMsg(t,ok){ $m.textContent=t||''; $m.className='msg '+(ok?'ok':'err'); }
+  // 已登录直接回
+  (async()=>{ const t=sessionStorage.getItem('koka_token'); if(t){ const r=await fetch('/api/auth/session',{headers:{Authorization:'Bearer '+t}}); if(r.ok) location.href=returnTo; } })();
+  async function login(){
+    const username=$u.value.trim(), password=$p.value;
+    if(!username||!password){ setMsg('请输入账号和密码'); return; }
+    $b.disabled=true; setMsg('登录中…');
+    try{
+      const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username,password,device:navigator.userAgent})});
+      const d=await r.json();
+      if(d.ok){ sessionStorage.setItem('koka_token', d.token); setMsg('登录成功，正在进入…', true); setTimeout(()=>location.href=returnTo, 400); }
+      else setMsg(d.message||'登录失败');
+    }catch(e){ setMsg('网络错误，请重试'); }
+    $b.disabled=false;
+  }
+  $b.addEventListener('click', login);
+  $p.addEventListener('keydown', e=>{ if(e.key==='Enter') login(); });
+</script>
+</body>
+</html>

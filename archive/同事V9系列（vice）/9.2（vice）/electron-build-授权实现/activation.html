@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'unsafe-inline'; script-src 'self';">
+<title>KOKALabel 报价系统 - 产品激活</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:"Microsoft YaHei",system-ui,sans-serif; background:#f0f4fb; color:#1e293b;
+         display:flex; justify-content:center; align-items:center; min-height:100vh; }
+  .card { background:#fff; border-radius:14px; box-shadow:0 10px 30px rgba(37,99,235,.12);
+          width:460px; padding:32px 30px; text-align:center; }
+  .logo { font-size:22px; font-weight:800; color:#2563eb; letter-spacing:.5px; }
+  .sub { font-size:12px; color:#64748b; margin-top:4px; }
+  .title { font-size:16px; font-weight:700; margin:22px 0 6px; }
+  .desc { font-size:13px; color:#64748b; line-height:1.6; }
+  .expired-badge, .warn-badge { display:inline-block; margin-top:10px; padding:5px 14px; border-radius:20px;
+          font-size:12px; font-weight:700; }
+  .expired-badge { background:#fee2e2; color:#dc2626; }
+  .warn-badge { background:#fef3c7; color:#b45309; }
+  .input-wrap { margin:20px 0 8px; }
+  input { width:100%; padding:12px 14px; font-size:15px; letter-spacing:1px; text-align:center;
+          border:2px solid #cbd5e1; border-radius:10px; outline:none; transition:.2s; }
+  input:focus { border-color:#2563eb; box-shadow:0 0 0 3px rgba(37,99,235,.15); }
+  .btn { width:100%; padding:12px; font-size:15px; font-weight:700; color:#fff; background:#2563eb;
+         border:none; border-radius:10px; cursor:pointer; margin-top:8px; transition:.2s; }
+  .btn:hover { background:#1d4ed8; }
+  .btn:disabled { background:#93c5fd; cursor:not-allowed; }
+  .btn-gray { background:#94a3b8; }
+  .btn-gray:hover { background:#64748b; }
+  .msg { margin-top:14px; font-size:13px; min-height:20px; line-height:1.5; }
+  .msg.ok { color:#059669; font-weight:600; }
+  .msg.err { color:#dc2626; }
+  .hint { margin-top:16px; font-size:11px; color:#94a3b8; line-height:1.7; }
+  .remaining { font-size:14px; font-weight:700; color:#2563eb; margin-top:8px; }
+  .loading { display:none; margin-top:8px; font-size:13px; color:#2563eb; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">KOKALabel</div>
+  <div class="sub">吊牌报价系统 · 产品授权</div>
+  <div class="title" id="title">产品激活</div>
+  <div class="desc" id="desc"></div>
+  <div id="stateBadge"></div>
+  <div class="input-wrap">
+    <input id="keyInput" placeholder="输入产品密钥（KOKA-XXXX-XXXX-XXXX）" autocomplete="off">
+  </div>
+  <button class="btn" id="activateBtn">激 活</button>
+  <div class="loading" id="loading">正在连接服务器激活…</div>
+  <div class="msg" id="msg"></div>
+  <div class="remaining" id="remaining"></div>
+  <button class="btn btn-gray" id="exitBtn" style="margin-top:14px;">退出</button>
+  <div class="hint">一个产品密钥限一台设备使用 · 激活后离线可用<br>如密钥需续期或更换设备，请联系管理员</div>
+</div>
+<script>
+  const $ = id => document.getElementById(id);
+  const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('zh-CN') : '';
+  const $title = $('title'), $desc = $('desc'), $badge = $('stateBadge'),
+        $msg = $('msg'), $rem = $('remaining'), $loading = $('loading');
+  const $btn = $('activateBtn'), $input = $('keyInput');
+
+  function showMsg(text, ok) { $msg.textContent = text || ''; $msg.className = 'msg ' + (ok ? 'ok' : 'err'); }
+  function setLoading(on) { $loading.style.display = on ? 'block' : 'none'; $btn.disabled = on; }
+
+  async function init() {
+    try {
+      const st = await window.licenseAPI.status();
+      if (st.status === 'active') { await window.licenseAPI.confirmOpened(); return; }
+      if (st.status === 'expired') {
+        $title.textContent = '授权已到期';
+        $desc.textContent = '到期日期：' + fmtDate(st.expiresAt) + '。请输入续期密钥重新激活。';
+        $badge.innerHTML = '<span class="expired-badge">已过期</span>';
+      } else if (st.status === 'invalid') {
+        $title.textContent = '授权文件异常';
+        $desc.textContent = '本地授权文件被篡改或损坏，请重新激活。';
+        $badge.innerHTML = '<span class="warn-badge">异常</span>';
+      } else if (st.status === 'time-rollback') {
+        $title.textContent = '系统时间异常';
+        $desc.textContent = '检测到系统时间被回拨，请校准时间后重新激活。';
+        $badge.innerHTML = '<span class="warn-badge">时间异常</span>';
+      } else {
+        $title.textContent = '欢迎使用 KOKALabel 报价系统';
+        $desc.textContent = '请输入管理员提供的产品密钥完成激活（每个密钥限一台设备）。';
+      }
+    } catch (e) { showMsg('加载授权信息失败：' + e.message, false); }
+  }
+
+  $btn.addEventListener('click', async () => {
+    const key = $input.value.trim();
+    if (!key) { showMsg('请输入产品密钥', false); return; }
+    setLoading(true); showMsg('');
+    try {
+      const r = await window.licenseAPI.activate(key);
+      if (r.ok) {
+        showMsg('激活成功！', true);
+        $rem.textContent = '授权至：' + fmtDate(r.expiresAt);
+        setTimeout(() => window.licenseAPI.confirmOpened(), 1200);
+      } else {
+        showMsg(r.message || '激活失败', false);
+      }
+    } catch (e) { showMsg('激活出错：' + e.message, false); }
+    setLoading(false);
+  });
+
+  $exitBtn.addEventListener('click', () => window.licenseAPI.exit());
+  $input.addEventListener('keydown', e => { if (e.key === 'Enter') $btn.click(); });
+
+  init();
+</script>
+</body>
+</html>
