@@ -1,5 +1,21 @@
 # KOKALabel 报价系统 变更日志
 
+## v10.7.0（2026-09-13，三块 9.8 功能加回定版）
+
+### 功能加回（按用户拍板 A+B+C，对齐 v9.8 体系）
+- **A 报价历史增强**：保存时生效的临时修改（临时毛利系数 / 邮费快速修改 / 每纸临时直接系数）固化进历史记录，历史详情按统一单源计算展示；历史表格改事件委托（重建 innerHTML 不叠加监听）；删除报价记录联动刷新统计报表。
+- **B 在线修改**（9.8 F1/F2/F3 加回）：数据管理新增「在线修改」标签页（报价历史与云同步之间），报价表组/报价表在线新增、重命名、删除、调整归属；管理员按模板导出含现有数据 → 修改后导入 → 原地覆盖目标报价表（不新建）；http 部署仅管理员可用，file:// 离线视为机主放行。
+- **C 快照与统计报表**（9.8 F4/F6 加回）：统计报表自动汇总月度报价次数 / 热销尺寸 / 利润分布（柱状图 + 汇总卡片），支持导出统计报表（一个工作簿三个工作表）；快照记录报价表组结构，支持导出快照集合 JSON。
+
+### 数据层与兼容
+- `js/data.js`：新增 `PRICE_LIST_GROUPS` 持久化（默认沿用 1楼小组/3楼小组，向后兼容旧 localStorage），7 个管理函数（getPriceListGroups/getGroupName/addPriceListGroup/renamePriceListGroup/deletePriceListGroup/renamePriceList/movePriceListToGroup/applyPriceListData）；`addPriceList` 支持 groupId/switchTo 参数，ID 追加随机后缀防碰撞。
+- 备份 / 完整配置 / 快照 / 重置 / 云共享全链路覆盖 `priceListGroups`；导入校验新增报价表组结构检查。
+- Excel 导出字符串单元格加公式注入防护（`safeExcelText`）。
+
+### 测试
+- `tests/online-edit.test.mjs`、`tests/stats.test.mjs` 去除 skip 恢复全部用例（13 + 8 项）。
+- 全量测试结果：**45 通过 / 5 跳过（integrity 完整性签名，对应 F8 未加回）/ 0 失败**。
+
 ## v10.6.0（2026-09-13，版本整合发版）
 
 ### 版本整合：同事 v10.5 合并入库，定位 v10.6.0

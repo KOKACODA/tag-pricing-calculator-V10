@@ -5,10 +5,6 @@ import path from "node:path";
 import vm from "node:vm";
 import { fileURLToPath } from "node:url";
 
-// v10.6.0 整合:9.8「快照统计报表」（F4） 在 v10.6 已移除。本文件暂挂(skip),
-// 后续按 docs/功能差别标记-9.8与10.6.md 加回功能后,删除本变量即可恢复全部用例。
-const __skipReason = "SKIP: 9.8「快照统计报表」（F4）";
-
 
 const testDir = path.dirname(fileURLToPath(import.meta.url));
 const projectRoot = path.resolve(testDir, "..");
@@ -60,7 +56,7 @@ function buildStatsApi(history) {
   return context.__statsApi;
 }
 
-test("parseStatSize 只接受正数尺寸", { skip: __skipReason }, () => {
+test("parseStatSize 只接受正数尺寸", () => {
   const api = buildStatsApi([]);
   assert.equal(api.parseStatSize("55"), 55);
   assert.equal(api.parseStatSize(30), 30);
@@ -69,7 +65,7 @@ test("parseStatSize 只接受正数尺寸", { skip: __skipReason }, () => {
   assert.equal(api.parseStatSize(null), 0);
 });
 
-test("collectRecordSizes 从 inputs.sheets 提取宽×长，缺失时回退 snapshot.sheetDetails", { skip: __skipReason }, () => {
+test("collectRecordSizes 从 inputs.sheets 提取宽×长，缺失时回退 snapshot.sheetDetails", () => {
   const api = buildStatsApi([]);
 
   const withSheets = { inputs: { sheets: [{ width: "55", length: "30" }] } };
@@ -81,7 +77,7 @@ test("collectRecordSizes 从 inputs.sheets 提取宽×长，缺失时回退 snap
   assert.equal(JSON.stringify(api.collectRecordSizes(empty)), '[]');
 });
 
-test("computeStats 正确聚合月度次数、热销尺寸与利润分布", { skip: __skipReason }, () => {
+test("computeStats 正确聚合月度次数、热销尺寸与利润分布", () => {
   const history = [
     { id: "h1", createdAt: "2026-09-02T10:00:00.000Z", inputs: { sheets: [{ width: "55", length: "30" }] }, snapshot: { cost: 72, pricesByLevel: [{ price: 86.4 }] } },
     { id: "h2", createdAt: "2026-09-05T10:00:00.000Z", inputs: { sheets: [{ width: "55", length: "30" }] }, snapshot: { cost: 100, pricesByLevel: [{ price: 150 }] } },
@@ -97,7 +93,7 @@ test("computeStats 正确聚合月度次数、热销尺寸与利润分布", { sk
   assert.equal(JSON.stringify(profits), '[14.4,50,-20]');
 });
 
-test("computeStats 跳过不含有效成本/报价的记录，避免污染利润", { skip: __skipReason }, () => {
+test("computeStats 跳过不含有效成本/报价的记录，避免污染利润", () => {
   const history = [
     { id: "h1", createdAt: "2026-09-02T10:00:00.000Z", inputs: { sheets: [] }, snapshot: { cost: 72, pricesByLevel: [{ price: 86.4 }] } },
     { id: "h2", createdAt: "2026-09-02T10:00:00.000Z", inputs: { sheets: [] }, snapshot: { cost: null, pricesByLevel: [{ price: 100 }] } },
@@ -108,7 +104,7 @@ test("computeStats 跳过不含有效成本/报价的记录，避免污染利润
   assert.ok(Math.abs(stats.profits[0].profit - 14.4) < 1e-9);
 });
 
-test("renderStatBarChart 输出 HTML 并对最大值给出 100% 宽度", { skip: __skipReason }, () => {
+test("renderStatBarChart 输出 HTML 并对最大值给出 100% 宽度", () => {
   const api = buildStatsApi([]);
   const html = api.renderStatBarChart([{ label: "55×30", count: 2 }, { label: "80×50", count: 1 }], "次");
   assert.match(html, /55×30/);
@@ -117,7 +113,7 @@ test("renderStatBarChart 输出 HTML 并对最大值给出 100% 宽度", { skip:
   assert.match(html, /width:50%/);
 });
 
-test("renderProfitBars 按利润区间分桶", { skip: __skipReason }, () => {
+test("renderProfitBars 按利润区间分桶", () => {
   const api = buildStatsApi([]);
   const profits = [{ profit: -10 }, { profit: 30 }, { profit: 60 }, { profit: 150 }, { profit: 300 }];
   const html = api.renderProfitBars(profits);
@@ -125,7 +121,7 @@ test("renderProfitBars 按利润区间分桶", { skip: __skipReason }, () => {
   assert.match(html, /200 元以上/);
 });
 
-test("computeProfitBrackets 按区间正确分桶", { skip: __skipReason }, () => {
+test("computeProfitBrackets 按区间正确分桶", () => {
   const api = buildStatsApi([]);
   const profits = [{ profit: -5 }, { profit: 0 }, { profit: 49 }, { profit: 50 }, { profit: 150 }, { profit: 300 }];
   const brackets = JSON.parse(JSON.stringify(api.computeProfitBrackets(profits)));

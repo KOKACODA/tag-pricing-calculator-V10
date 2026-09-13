@@ -1,4 +1,4 @@
-/* KOKALabel报价系统 v10.6.0 - 样式表 */
+/* KOKALabel报价系统 v10.7.0 - 样式表 */
 
 /* ===================== 全局变量与重置 ===================== */
     :root {
@@ -2091,6 +2091,262 @@
     .history-dialog-footer {
       justify-content: flex-end;
       border-top: 1px solid var(--border);
+    }
+
+    /* ===================== v10.7.0 在线修改（对齐 v9.8.0） ===================== */
+    .online-lock-notice {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 18px 16px;
+      margin: 6px 0 12px;
+      border: 1px dashed var(--border);
+      border-radius: 10px;
+      background: var(--brand-light);
+    }
+
+    .online-lock-notice[hidden] {
+      display: none;
+    }
+
+    .online-lock-title {
+      color: var(--brand-dark);
+      font-size: 14px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .online-lock-desc {
+      color: var(--text-secondary);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .online-section-gap {
+      margin-top: 26px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
+    .online-group-card {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      background: var(--card);
+    }
+
+    .online-group-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+
+    .online-group-title {
+      display: flex;
+      align-items: baseline;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .online-group-name {
+      color: var(--brand-dark);
+      font-size: 14px;
+      font-weight: 700;
+    }
+
+    .online-group-meta {
+      color: var(--text-secondary);
+      font-size: 12px;
+    }
+
+    .online-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .online-pl-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .online-current-badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 1px 8px;
+      border-radius: 999px;
+      background: var(--brand-light);
+      color: var(--brand-dark);
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .online-move-select {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--text);
+      background: var(--card);
+      cursor: pointer;
+    }
+
+    .online-group-empty {
+      padding: 18px 10px;
+    }
+
+    .online-tpl-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .online-tpl-select {
+      flex: 1;
+      min-width: 220px;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--card);
+    }
+
+    .online-tpl-btns {
+      margin-top: 0;
+    }
+
+    /* ===================== v10.7.0 统计报表（对齐 v9.4） ===================== */
+    .stats-content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .stats-snapshot-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    .stats-snapshot-layout .stats-content {
+      max-height: 520px;
+      overflow-y: auto;
+    }
+
+    .stats-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 920px) {
+      .stats-snapshot-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .stat-panel {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px 18px;
+    }
+
+    .stat-panel-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .stat-panel-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--brand-dark);
+    }
+
+    .stat-panel-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .stat-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+
+    .stat-summary-item {
+      flex: 1 1 120px;
+      background: #fafcff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    .stat-summary-label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      margin-bottom: 2px;
+    }
+
+    .stat-summary-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--brand-dark);
+    }
+
+    .stat-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 0;
+    }
+
+    .stat-bar-label {
+      flex: 0 0 96px;
+      text-align: right;
+      font-size: 12px;
+      color: var(--text);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .stat-bar-track {
+      flex: 1;
+      background: var(--brand-light);
+      border-radius: 6px;
+      height: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .stat-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--brand), var(--brand-dark));
+      border-radius: 6px;
+      min-width: 2px;
+      transition: width 0.3s ease;
+    }
+
+    .stat-bar-value {
+      flex: 0 0 60px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      text-align: left;
     }
 
     .shipping-dialog {
