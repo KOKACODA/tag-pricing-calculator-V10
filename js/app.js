@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v10.6.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v10.8.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -96,13 +96,15 @@ function formatPriceRaw(value) {
 const INITIAL_OPTION_PRICE_TIER = 1000;
 
 // v9.9：吊绳 1000 张基准价——优先取 1000 档，缺省回退 500 档（两者同价）
+// v10.8.0：允许 0 作为有效基准价（「不加吊绳」全 0 定价属于合法情形，不应再报
+// 「未设置 1000 张基准价」；0 表示免费，仍需按 0 计价）。
 function getRopeBasePrice(prices) {
   if (!prices) return null;
   let v = prices["1000"] != null && prices["1000"] !== "" ? Number(prices["1000"]) : NaN;
-  if (isNaN(v) || v <= 0) {
+  if (isNaN(v)) {
     v = prices["500"] != null && prices["500"] !== "" ? Number(prices["500"]) : NaN;
   }
-  return isNaN(v) || v <= 0 ? null : v;
+  return isNaN(v) || v === null ? null : v;
 }
 
 function getInitialOptionPrice(prices) {
@@ -292,10 +294,12 @@ function computeDirectTempTotals(result, rawValues) {
 }
 
 /**
- * 计算含出血的单张面积。
+ * 计算单张面积。出血打开（默认）时四周各加 3mm；关闭时不加出血。
+ * @param {boolean} hasBleed
  */
-function calcBleedArea(length, width) {
-  return (length + 3) * (width + 3);
+function calcBleedArea(length, width, hasBleed = true) {
+  const bleed = hasBleed ? 3 : 0;
+  return (length + bleed) * (width + bleed);
 }
 
 /**
@@ -408,11 +412,52 @@ function forceSpecByArea(paper, area) {
 }
 
 /**
+ * v10.8.0：不出血（是否出血=否）时使用的面积区间档位。
+ * 模板仍按「最大含出血面积」字段读取，但匹配不再沿用原「向上取最小 >= 面积」逻辑，
+ * 而是把面积套进固定区间 [0,1040,1280,1600,2000,2400,2800,3200,3600,4000]，
+ * 取所属区间的上限档位；超出最大区间时用最大规格并附面积系数。不套用 005/055/006 强制映射。
+ */
+const BLEED_OFF_INTERVALS = [0, 1040, 1280, 1600, 2000, 2400, 2800, 3200, 3600, 4000];
+
+function matchSpecNoBleed(paper, area) {
+  const upperBrackets = BLEED_OFF_INTERVALS.slice(1); // 1040 … 4000
+  let upper = null;
+  for (const b of upperBrackets) {
+    if (area <= b) { upper = b; break; }
+  }
+  // 优先按固定区间精确落档（唛头等不出血报价表的规格 maxArea 即这些区间值）
+  if (upper != null) {
+    const spec = paper.specs.find(s => s.maxArea === upper);
+    if (spec) {
+      return (spec.code === "007" || spec.code === "008") ? { ...spec, code: "007/008" } : spec;
+    }
+  }
+  // 兜底：向上取最小满足面积的规格（不套用强制规格映射）
+  const candidates = paper.specs.filter(s => s.maxArea >= area).sort((a, b) => a.maxArea - b.maxArea);
+  if (candidates.length) {
+    const spec = candidates[0];
+    return (spec.code === "007" || spec.code === "008") ? { ...spec, code: "007/008" } : spec;
+  }
+  const lastSpec = paper.specs[paper.specs.length - 1];
+  if (lastSpec) {
+    const coeff = calcAreaCoefficient(area);
+    return (lastSpec.code === "007" || lastSpec.code === "008")
+      ? { ...lastSpec, code: "007/008", areaCoefficient: coeff }
+      : { ...lastSpec, areaCoefficient: coeff };
+  }
+  return { error: true, message: "未找到匹配规格" };
+}
+
+/**
  * 根据有效面积向上匹配尺寸规格。
  * 面积超过 10000 时使用最大规格（code "100"）并附带面积系数；007 与 008 合并显示为 007/008。
  * v7.3：面积 4000-6000 时强制映射 005/055/006，不读取表格数据。
+ * v10.8.0：新增 hasBleed 参数——false 时走区间匹配（matchSpecNoBleed）。
  */
-function matchSpec(paper, area) {
+function matchSpec(paper, area, hasBleed = true) {
+  if (!hasBleed) {
+    return matchSpecNoBleed(paper, area);
+  }
   // v7.3：强制面积规格映射（不读取表格数据）
   const forced = forceSpecByArea(paper, area);
   if (forced) return forced;
@@ -492,8 +537,10 @@ function calculate(inputs) {
     const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === paperId);
     if (!paper) return null;
 
-    // 单张含出血面积（单张尺寸 / 展开尺寸目前均按输入长宽直接计算）
-    const singleArea = calcBleedArea(length, width);
+    // v10.8.0：是否出血（默认出血）；出血关闭时面积不加 3mm，并按固定区间匹配规格
+    const hasBleed = paper.hasBleed !== false;
+    // 单张面积（单张尺寸 / 展开尺寸目前均按输入长宽直接计算）
+    const singleArea = calcBleedArea(length, width, hasBleed);
 
     // 代码选择：优先使用手动指定的代码，否则按面积自动匹配
     let spec;
@@ -501,7 +548,7 @@ function calculate(inputs) {
       spec = findSpecByDisplayCode(paper, sheet.manualCode, singleArea);
     }
     if (!spec) {
-      spec = matchSpec(paper, singleArea);
+      spec = matchSpec(paper, singleArea, hasBleed);
     }
     if (spec && spec.error) {
       return { error: spec.message };
@@ -1273,7 +1320,7 @@ function renderSheets() {
         </div>` : ""}
       </div>
       <div class="form-group" style="margin-bottom: 0;">
-        <label class="field-label">吊牌展开尺寸 <span class="hint">自动加 3mm 出血</span></label>
+        <label class="field-label">吊牌展开尺寸 <span class="hint">${currentPaper && currentPaper.hasBleed === false ? "不出血，不加 3mm" : "自动加 3mm 出血"}</span></label>
         <div class="sheet-size-row">
           <div class="form-group">
             <label class="unit">宽 (mm)</label>
@@ -1537,8 +1584,9 @@ function onCodeSwitch(sheetIdx, dir) {
     const w = parseFloat(state.width);
     const l = parseFloat(state.length);
     if (w && l) {
-      const area = calcBleedArea(l, w);
-      const spec = matchSpec(paper, area);
+      const hasBleed = paper.hasBleed !== false;
+      const area = calcBleedArea(l, w, hasBleed);
+      const spec = matchSpec(paper, area, hasBleed);
       currentCode = spec.code;
     }
   }
@@ -3575,7 +3623,7 @@ function exportSnapshotSet() {
     showToast("暂无快照可导出");
     return;
   }
-  downloadJson({ version: "10.7.0", count: list.length, snapshots: list }, "KOKALabel快照_" + formatDateFile() + ".json");
+  downloadJson({ version: "10.8.0", count: list.length, snapshots: list }, "KOKALabel快照_" + formatDateFile() + ".json");
   showToast("快照已导出");
 }
 
@@ -4243,7 +4291,7 @@ function setLocalBackupStatus(html, isError) {
 
 function exportLocalBackup() {
   const data = {
-    version: "10.7.0",
+    version: "10.8.0",
     kind: "local-backup",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
@@ -4399,7 +4447,7 @@ function importLocalBackup(file) {
 // -------------------- 导入 / 导出完整配置 --------------------
 function exportFullData() {
   const data = {
-    version: "10.7.0",
+    version: "10.8.0",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
     priceListGroups: PRICE_LIST_GROUPS, // v10.7.0：随配置导出报价表组结构
@@ -4580,6 +4628,7 @@ function paperToSheetRows(paper, priceList) {
     ["报价表全称", safeExcelText(paper.name)],
     ["简称", safeExcelText(paper.shortName)],
     ["折扣系数", paper.discount],
+    ["是否出血", paper.hasBleed === false ? "否" : "是"],
     ...directCoeffRows(paper, tierKeys),
     ...batchDirectRows(paper, tierKeys),
     ["备注", ""],
@@ -4634,6 +4683,8 @@ function downloadPaperTemplate() {
     rows.push(["报价表全称", paper.name]);
     rows.push(["简称", paper.shortName]);
     rows.push(["折扣系数", paper.discount]);
+    // v10.8.0：是否出血（默认出血）；填「否」时面积不加 3mm 并按区间匹配
+    rows.push(["是否出血", paper.hasBleed === false ? "否" : "是"]);
     // 直接系数三行（有系数填实际值，无系数用价格档位占位）
     const dc = paper.directCoeff;
     const hasDC = dc && Array.isArray(dc.tiers) && dc.tiers.length > 0 &&
@@ -4721,6 +4772,8 @@ function parsePaperExcel(arrayBuffer) {
 
     // 读取表头信息区（按标签匹配，兼容有无"所属小组"/"总报价表"行）
     let name = "", shortName = "", discountRaw = "";
+    // v10.8.0：是否出血（默认出血）；模板「是否出血」填「否」时面积不加 3mm 并按区间匹配
+    let hasBleed = true;
     for (let i = 0; i < Math.min(rows.length, 8); i++) {
       const label = String(rows[i] && rows[i][0] || "").trim();
       const val = rows[i] && rows[i][1];
@@ -4733,6 +4786,10 @@ function parsePaperExcel(arrayBuffer) {
       if (label === "1号报价表全称" || label === "报价表全称") name = String(val || "").trim();
       else if (label === "简称") shortName = String(val || "").trim();
       else if (label === "折扣系数") discountRaw = val;
+      else if (label === "是否出血") {
+        const hv = String(val == null ? "" : val).trim();
+        hasBleed = !(hv === "否" || hv === "0" || hv === "false" || hv === "False");
+      }
     }
     const discount = discountRaw === "" || discountRaw == null ? 1 : Number(discountRaw);
 
@@ -4971,6 +5028,8 @@ function parsePaperExcel(arrayBuffer) {
       name,
       shortName,
       discount: isNaN(discount) || discount <= 0 || discount > 10 ? 1 : discount,
+      // v10.8.0：是否出血（默认出血）；模板未填该行或填「是」→ true，填「否」→ false
+      hasBleed,
       // 直接系数：Sheet 专属配置，只读取报价表表格三行（直接系数档位/最高倍数/最低倍数）。
       // 表格未填有效直接系数时，匹配默认简称则继承默认配置，否则为 null（按标准报价计算）
       directCoeff: directCoeff || (defaultPaper && defaultPaper.directCoeff
