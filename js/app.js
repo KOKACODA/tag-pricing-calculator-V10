@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v10.8.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v10.9.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -2616,7 +2616,10 @@ function renderPriceTable() {
   els.paperPageInfo.textContent = `第 ${currentPaperIndex + 1} / ${currentPapers.length} 张`;
   els.prevPaper.disabled = currentPaperIndex === 0;
   els.nextPaper.disabled = currentPaperIndex === currentPapers.length - 1;
-  els.paperNotes.textContent = `备注：当前展示「${paper.name}」（${getCurrentPriceList().name}）。007 与 008 合并为 007/008；面积超过 10000 mm² 时按面积系数计算（面积÷10000，四舍五入保留两位小数）。`;
+  // v10.9.0：报价表有备注时，在独立框体（表格下方单独起行）展示该报价表备注；无备注则展示通用说明
+  els.paperNotes.innerHTML = paper.notes && String(paper.notes).trim()
+    ? `报价表备注：${escapeHtml(String(paper.notes).trim())}`
+    : `备注：当前展示「${escapeHtml(paper.name)}」（${escapeHtml(getCurrentPriceList().name)}）。007 与 008 合并为 007/008；面积超过 10000 mm² 时按面积系数计算（面积÷10000，四舍五入保留两位小数）。`;
 
   // 同步下拉选择器
   if (els.paperSelector) {
@@ -3623,7 +3626,7 @@ function exportSnapshotSet() {
     showToast("暂无快照可导出");
     return;
   }
-  downloadJson({ version: "10.8.0", count: list.length, snapshots: list }, "KOKALabel快照_" + formatDateFile() + ".json");
+  downloadJson({ version: "10.9.0", count: list.length, snapshots: list }, "KOKALabel快照_" + formatDateFile() + ".json");
   showToast("快照已导出");
 }
 
@@ -4291,7 +4294,7 @@ function setLocalBackupStatus(html, isError) {
 
 function exportLocalBackup() {
   const data = {
-    version: "10.8.0",
+    version: "10.9.0",
     kind: "local-backup",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
@@ -4447,7 +4450,7 @@ function importLocalBackup(file) {
 // -------------------- 导入 / 导出完整配置 --------------------
 function exportFullData() {
   const data = {
-    version: "10.8.0",
+    version: "10.9.0",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
     priceListGroups: PRICE_LIST_GROUPS, // v10.7.0：随配置导出报价表组结构
@@ -4631,7 +4634,7 @@ function paperToSheetRows(paper, priceList) {
     ["是否出血", paper.hasBleed === false ? "否" : "是"],
     ...directCoeffRows(paper, tierKeys),
     ...batchDirectRows(paper, tierKeys),
-    ["备注", ""],
+    ["备注", paper.notes || ""],
     [],
     headerRow,
     ...dataRows,
@@ -4701,7 +4704,7 @@ function downloadPaperTemplate() {
     rows.push(["批量直接报价最大面积", hasBD ? bd.maxArea : ""]);
     rows.push(["批量直接报价档位", ...bdTiers]);
     rows.push(["批量直接报价价格", ...(hasBD ? bdTiers.map(t => (bd.prices[t] == null ? "" : bd.prices[t])) : bdTiers.map(() => ""))]);
-    rows.push(["备注", "直接系数档位/最高倍数/最低倍数三行：档位为批量张数，最高倍数→普通客户，最低倍数→大客户，中间等级自动等差插值。无直接系数的纸张按标准报价（乘折扣系数）计算。批量直接报价三行：最大面积（出血后）+ 档位 + 价格，面积在最大面积内时直接按批量价格报价（不打折、不乘系数），工艺费用直接叠加；无批量直接报价的纸张留空即可。"]);
+    rows.push(["备注", paper.notes || "直接系数档位/最高倍数/最低倍数三行：档位为批量张数，最高倍数→普通客户，最低倍数→大客户，中间等级自动等差插值。无直接系数的纸张按标准报价（乘折扣系数）计算。批量直接报价三行：最大面积（出血后）+ 档位 + 价格，面积在最大面积内时直接按批量价格报价（不打折、不乘系数），工艺费用直接叠加；无批量直接报价的纸张留空即可。"]);
     rows.push([]);
 
     // 规格区：取规格档位 + 工艺档位并集
@@ -4858,6 +4861,15 @@ function parsePaperExcel(arrayBuffer) {
         batchDirect = { maxArea: bdMaxArea, prices };
       }
       // 仅占位（无最大面积/价格）或无任何行 → batchDirect 保持 null
+    }
+
+    // v10.9.0：读取「备注」行 → paper.notes（供报价表查询时独立框体展示）
+    let notes = "";
+    for (let i = 0; i < rows.length; i++) {
+      if (String(rows[i] && rows[i][0] || "").trim() === "备注") {
+        notes = String(rows[i][1] || "").trim();
+        break;
+      }
     }
 
     if (!name) {
@@ -5030,6 +5042,8 @@ function parsePaperExcel(arrayBuffer) {
       discount: isNaN(discount) || discount <= 0 || discount > 10 ? 1 : discount,
       // v10.8.0：是否出血（默认出血）；模板未填该行或填「是」→ true，填「否」→ false
       hasBleed,
+      // v10.9.0：备注（报价表查询时独立框体展示）；无备注时为空字符串
+      notes,
       // 直接系数：Sheet 专属配置，只读取报价表表格三行（直接系数档位/最高倍数/最低倍数）。
       // 表格未填有效直接系数时，匹配默认简称则继承默认配置，否则为 null（按标准报价计算）
       directCoeff: directCoeff || (defaultPaper && defaultPaper.directCoeff

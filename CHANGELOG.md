@@ -1,5 +1,25 @@
 # KOKALabel 报价系统 变更日志
 
+## v10.9.0（2026-09-24，唛头报价默认表 + 备注独立框体 + 吊绳切换刷新修复）
+
+### 新增：唛头报价（默认报价表，归属新「唛头报价」组）
+- `js/data.js`：默认新增第 3 个报价表组 `group3`「唛头报价」与报价表 `priceList3`「唛头」，含 2 张纸：`paperMatouZhibian`「织边带（消光带）」、`paperMatouDiannaoji`「电脑机」；默认均不出血（`hasBleed:false`）、含纸种备注（`notes`）。
+- 数据导入（`parsePaperExcel`）读取「备注」行写入 `paper.notes`；导出模板补「备注」行。
+
+### 新增：报价表备注独立框体展示
+- `js/app.js` `renderPriceTable`：报价表有备注时，在以 `div.notes`（表格下方独立起行琥珀色框体）展示「报价表备注：…」；无备注回退通用说明。`css/style.css` `.notes` 已有独立框样式。
+
+### 修复：吊绳切换不实时刷新报价
+- 确认 `bindRopeEvents` 已在 `change` 事件里调用 `onCalculate()` 并在 `bindEvents()`/`rebuildRopeUI()` 时重绑，切换吊绳即刻重算报价（无残留旧值）。
+
+### 修复：新增第 3 默认报价表引发的旧版迁移误伤
+- `migrateV8Restructure`：原以「报价表数>2 / 含 priceList3」判旧库。新增默认 `priceList3` 后该判定对现代用户误伤（清空用户改价）。现增加版本守卫：`dataVersion >= 8.0` 直接返回（v8.0+ 用户本不需要 v8 重构）。修复老用户（9.0.1 起链）3 楼用户改价折扣（如 0.88）被重置为默认的回归。
+- `migrateFloor1V951`：重建纸张时仅保留 priceList1+priceList2，会丢弃价格表3「唛头」纸。现补「others」段，保留非 1/3 楼纸张。
+
+### 数据与测试
+- 全量测试结果：**51 通过 / 5 跳过（integrity 完整性签名 F8）/ 0 失败**，新增「默认包含唛头报价表：2 张纸、不出血且含备注」用例，并回归迁移相关用例。
+- 版本号全站 v10.8.0 → v10.9.0（index.html 缓存参数+标题，app.js/data.js 版本头，导出记录 version 标记）。
+
 ## v10.8.0（2026-09-24，吊绳 0 价修复 + 是否出血规则）
 
 ### 修复：吊绳「不加吊绳」全 0 定价误报「未设置 1000 张基准价」

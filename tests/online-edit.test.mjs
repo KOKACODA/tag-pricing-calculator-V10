@@ -49,12 +49,13 @@ function loadDataModule(storage) {
 
 // ---------- 数据层：报价表组 CRUD ----------
 
-test("默认包含两个报价表组，getGroupName 可解析组名", () => {
+test("默认包含三个报价表组，getGroupName 可解析组名", () => {
   const m = loadDataModule(createMemoryStorage());
   const groups = m.getPriceListGroups();
-  assert.equal(groups.length, 2);
+  assert.equal(groups.length, 3);
   assert.equal(m.getGroupName("group1"), "1楼小组");
   assert.equal(m.getGroupName("group2"), "3楼小组");
+  assert.equal(m.getGroupName("group3"), "唛头报价");
   assert.equal(m.getGroupName("not_exist"), "未分组");
 });
 
@@ -64,14 +65,14 @@ test("新增报价表组：成功持久化；重名与空名被拒绝", () => {
 
   const r = m.addPriceListGroup(" 2楼小组 ");
   assert.equal(r.ok, true);
-  assert.equal(m.getPriceListGroups().length, 3);
+  assert.equal(m.getPriceListGroups().length, 4);
   assert.equal(m.getGroupName(r.id), "2楼小组"); // 名称去首尾空格
   // 持久化：写入 localStorage
   assert.ok(storage.getItem("tagPricing_priceListGroups").includes("2楼小组"));
 
   assert.equal(m.addPriceListGroup("2楼小组").ok, false); // 重名
   assert.equal(m.addPriceListGroup("  ").ok, false);      // 空名
-  assert.equal(m.getPriceListGroups().length, 3);
+  assert.equal(m.getPriceListGroups().length, 4);
 });
 
 test("重命名报价表组：生效并同步 GROUP_NAME_MAP；重名/空名被拒绝", () => {
@@ -96,14 +97,29 @@ test("删除报价表组：空组可删；有报价表的组与最后一个组�
 
   const added = m.addPriceListGroup("临时空组");
   assert.equal(m.deletePriceListGroup(added.id).ok, true);
-  assert.equal(m.getPriceListGroups().length, 2);
+  assert.equal(m.getPriceListGroups().length, 3);
 
-  // 移空 group1：此时共 2 个组，删掉空的 group1 后剩 1 个组（允许）
-  m.movePriceListToGroup("priceList1", "group2");
+  // 移空 group1 与 group2，只剩 group3（触底保护）
+  m.movePriceListToGroup("priceList1", "group3");
+  m.movePriceListToGroup("priceList2", "group3");
   assert.equal(m.deletePriceListGroup("group1").ok, true);
-  assert.equal(m.getPriceListGroups().length, 1);
+  assert.equal(m.deletePriceListGroup("group2").ok, true);
+  assert.equal(m.getPriceListGroups().length, 1); // 仅剩 group3
   // 最后一个组不可删（触底保护）
-  assert.equal(m.deletePriceListGroup("group2").ok, false);
+  assert.equal(m.deletePriceListGroup("group3").ok, false);
+});
+
+test("默认包含「唛头」报价表：2 张纸，不出血且含备注", () => {
+  const m = loadDataModule(createMemoryStorage());
+  const pl = m.priceLists.find(p => p.name === "唛头");
+  assert.ok(pl, "应存在默认报价表「唛头」");
+  assert.equal(pl.groupId, "group3");
+  const papers = m.getPapersByPriceList(pl.id);
+  assert.equal(papers.length, 2);
+  assert.ok(papers.every(p => p.hasBleed === false), "唛头默认不出血");
+  assert.ok(papers.every(p => p.notes && p.notes.trim().length > 0), "唛头纸张含备注");
+  assert.equal(papers[0].shortName, "织边带（消光带）");
+  assert.equal(papers[1].shortName, "电脑机");
 });
 
 // ---------- 数据层：报价表改名 / 移动 / 增删 ----------
