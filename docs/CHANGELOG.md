@@ -6,7 +6,7 @@
 
 - **功能基底**：同事仓库 `zly62612364469/kokalabel-quote` 的 `v12.9`（tag = HEAD）。
 - **回搬范围**：v11.0 → v12.9 全部功能（详见根 `CHANGELOG.md` v13.0 条目清单）。
-- **企业定制清洗**：`亲成`/`Qincheng` → `KOKA`/`KOKALabel`（19 文件 0 残留）；移除企业 logo `assets-logo-qincheng.svg` 与企业 `favicon.svg`，改用本仓库 KOKA 图标；`companyName` 改回 `KOKA`。
+- **企业定制清洗**：`企业定制品牌`/`Enterprise` → `KOKA`/`KOKALabel`（19 文件 0 残留）；移除企业 logo `assets-logo-enterprise.svg` 与企业 `favicon.svg`，改用本仓库 KOKA 图标；`companyName` 改回 `KOKA`。
 - **账号/后端回归 9.8 三级**：`js/auth.js`（admin/sales/guest + 访客门控适配 5 页布局）、`functions/`（`/api/default` 契约）、`login.html`+`js/login.js`、`app.js` 云上传契约；KV `AUTH` 与 CF 项目 `tag-pricing-calculator-v5` 不变。
 - **版本号**：全站 v12.9 → v13.0。
 - **验证**：`node --check` 全通过；`node --test` 56 项 → 51 通过 / 5 跳过 / 0 失败。
@@ -34,8 +34,8 @@
 - 同事 V9 系列（9.0 ~ 9.9）并入 `archive/同事V9系列（vice）/`，目录加后缀「（vice）」与仓库 9.8 基线区分，仅作版本记录、不部署。
 
 ### 品牌与登录（用户拍板，v10.6 明确规则）
-- **品牌保持 KOKA**：v10.5 同事版「亲成」品牌/公司名改动全部回退，全站保持 KOKALabel。
-- **图标保持 KOKA**：`index.html` 图标引用改回 `assets/` 下 KOKA 菱形铅笔标；删除根目录亲成图标文件（归档内保留原档备查）。
+- **品牌保持 KOKA**：v10.5 同事版企业定制品牌/公司名改动全部回退，全站保持 KOKALabel。
+- **图标保持 KOKA**：`index.html` 图标引用改回 `assets/` 下 KOKA 菱形铅笔标；删除根目录企业定制品牌图标文件（归档内保留原档备查）。
 - **登录保持 9.8**：账号登录体系（login.html / js/auth.js / functions/ Pages Functions + KV）采用 9.8 版，不使用 v10.5 实现；auth.js 保留 v10.6.0 兼容补丁（`roleNum/canEditQuote/toast`）。
 
 ### 9.8 功能保留与补全
@@ -107,10 +107,10 @@
 - 个人主页 → 报价设置 → **纸张材质选择模式**（芯片平铺（默认）/ 下拉框搜索），切换后保存即重绘。
 - 下拉模式：触发框显示「简称芯片 + 全称芯片」同一行；面板顶部搜索框支持简称/全称**模糊搜索**（多关键词、忽略大小写、复用 v9.5 时代的 paperMatchesSearch 匹配引擎），Enter 选首个匹配、Esc 关闭、点外部收起；选项列表每项同为「简称芯片 + 全称」同行，选中高亮。
 
-### 品牌更换：KOKALabel → 亲成 + 全套图标更新
-- 全站用户可见文案（标题/侧栏品牌/登录页/导出文件名/默认公司名等 20 处）改为「亲成」。
+### 品牌更换：KOKALabel → 企业定制品牌 + 全套图标更新
+- 全站用户可见文案（标题/侧栏品牌/登录页/导出文件名/默认公司名等 20 处）改为「企业定制品牌」。
 - 内部标识符（KOKA 对象、KOKA_AUTH KV、tagPricing_ 存储前缀、koka* 类名）**保持不变**，存储与云同步完全兼容。
-- 图标更新：新 logo SVG 入库（assets-logo-qincheng.svg）；favicon.svg（图形部分白底圆角）新增引用；favicon.ico（16~256 多尺寸）/ favicon.png(32) / apple-touch-icon(180) 全部由新 logo 栅格化重新生成（Edge headless 截图 + Pillow）。
+- 图标更新：新 logo SVG 入库（assets-logo-enterprise.svg）；favicon.svg（图形部分白底圆角）新增引用；favicon.ico（16~256 多尺寸）/ favicon.png(32) / apple-touch-icon(180) 全部由新 logo 栅格化重新生成（Edge headless 截图 + Pillow）。
 
 ## v10.0.0（2026-09-10，本地修改）
 

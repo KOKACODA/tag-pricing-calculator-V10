@@ -1,0 +1,3 @@
+# Cloudflare Pages 直传忽略清单（wrangler pages deploy 读取）
+# 目的：archive/ 为同事版历史归档（含企业定制品牌），按「仅记录、不部署」原则不上传公网。
+archive/

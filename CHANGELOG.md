@@ -30,9 +30,9 @@
 - v12.9 规格匹配双模式（表格匹配 默认 / 规则匹配）+ 匹配规则编辑器（数据管理 → 匹配规则）
 
 ### 企业定制清洗（全量）
-- **品牌**：`亲成`/`Qincheng` → `KOKA`/`KOKALabel`（代码注释、`index.html`/`login.html` 标题与侧栏、CSS 头、文档），共清洗 19 个文件、0 残留。
-- **图标**：移除 `assets/assets-logo-qincheng.svg` 与 `assets/favicon.svg`，统一使用本仓库 KOKA 图标（`favicon.ico`/`favicon.png`/`apple-touch-icon.png`）。
-- **默认数据**：`APP_PROFILE.companyName` 由「亲成」改为 `KOKA`。
+- **品牌**：`企业定制品牌`/`Enterprise` → `KOKA`/`KOKALabel`（代码注释、`index.html`/`login.html` 标题与侧栏、CSS 头、文档），共清洗 19 个文件、0 残留。
+- **图标**：移除 `assets/assets-logo-enterprise.svg` 与 `assets/favicon.svg`，统一使用本仓库 KOKA 图标（`favicon.ico`/`favicon.png`/`apple-touch-icon.png`）。
+- **默认数据**：`APP_PROFILE.companyName` 由「企业定制品牌」改为 `KOKA`。
 
 ### 账号/后端回归 9.8 三级体系（不使用同事四级 superadmin 体系）
 - 前端 `js/auth.js`：本仓库 9.8 三级（`admin` 管理员 / `sales` 业务员 / `guest` 访客）+ 账号面板；新增 v13.0 适配——访客隐藏除「智能报价计算器」外的全部导航与页面（对齐 v12.9 五页布局）。
@@ -123,8 +123,8 @@
 - 同事 V9 系列（9.0 ~ 9.9）并入 `archive/同事V9系列（vice）/`，全部目录加后缀「（vice）」与仓库 9.8 基线区分，仅作版本记录、不部署。
 
 ### 品牌与登录（用户拍板，v10.6 明确规则）
-- **品牌保持 KOKA**：v10.5 同事版的「亲成」品牌/公司名改动全部回退，全站标题/侧栏/登录页/导出文件名/默认公司名保持 KOKALabel。
-- **图标保持 KOKA**：`index.html` 图标引用改回 `assets/` 下 KOKA 菱形铅笔标（v9.8 图标）；删除根目录同事版亲成图标文件（favicon.svg/ico/png、apple-touch-icon.png、assets-logo-qincheng.svg），归档内保留亲成原档备查。
+- **品牌保持 KOKA**：v10.5 同事版的企业定制品牌/公司名改动全部回退，全站标题/侧栏/登录页/导出文件名/默认公司名保持 KOKALabel。
+- **图标保持 KOKA**：`index.html` 图标引用改回 `assets/` 下 KOKA 菱形铅笔标（v9.8 图标）；删除根目录同事版企业定制品牌图标文件（favicon.svg/ico/png、apple-touch-icon.png、assets-logo-enterprise.svg），归档内保留企业定制品牌原档备查。
 - **登录保持 9.8**：账号登录体系（login.html / js/auth.js / functions/ Pages Functions + KV，管理员/业务员/访客）采用 9.8 版，不使用 v10.5 的登录实现；auth.js 保留 v10.6.0 兼容补丁（`roleNum/canEditQuote/toast`）供 v10.5 app.js 调用。
 
 ### 9.8 功能保留与补全
@@ -234,10 +234,10 @@
 - 个人主页 → 报价设置 → **纸张材质选择模式**（芯片平铺（默认）/ 下拉框搜索），切换后保存即重绘。
 - 下拉模式：触发框显示「简称芯片 + 全称芯片」同一行；面板顶部搜索框支持简称/全称**模糊搜索**（多关键词、忽略大小写、复用 v9.5 时代的 paperMatchesSearch 匹配引擎），Enter 选首个匹配、Esc 关闭、点外部收起；选项列表每项同为「简称芯片 + 全称」同行，选中高亮。
 
-### 品牌更换：KOKALabel → 亲成 + 全套图标更新
-- 全站用户可见文案（标题/侧栏品牌/登录页/导出文件名/默认公司名等 20 处）改为「亲成」。
+### 品牌更换：KOKALabel → 企业定制品牌 + 全套图标更新
+- 全站用户可见文案（标题/侧栏品牌/登录页/导出文件名/默认公司名等 20 处）改为「企业定制品牌」。
 - 内部标识符（KOKA 对象、KOKA_AUTH KV、tagPricing_ 存储前缀、koka* 类名）**保持不变**，存储与云同步完全兼容。
-- 图标更新：新 logo SVG 入库（assets-logo-qincheng.svg）；favicon.svg（图形部分白底圆角）新增引用；favicon.ico（16~256 多尺寸）/ favicon.png(32) / apple-touch-icon(180) 全部由新 logo 栅格化重新生成（Edge headless 截图 + Pillow）。
+- 图标更新：新 logo SVG 入库（assets-logo-enterprise.svg）；favicon.svg（图形部分白底圆角）新增引用；favicon.ico（16~256 多尺寸）/ favicon.png(32) / apple-touch-icon(180) 全部由新 logo 栅格化重新生成（Edge headless 截图 + Pillow）。
 
 ## v10.0.0（2026-09-10，本地修改）
 

@@ -23,7 +23,7 @@
 ## 已完成 · 本期开合（v13.0）
 
 - [x] 以同事 `v12.9` 为功能基底回搬 v11.0→v12.9 全量功能（清单见根 `CHANGELOG.md` v13.0 条目）。
-- [x] 企业定制全量清洗：`亲成`/`Qincheng` → `KOKA`/`KOKALabel`（19 文件、0 残留）；移除企业 logo `assets-logo-qincheng.svg` 与 `favicon.svg`，改用 KOKA 图标；`APP_PROFILE.companyName` 改回 `KOKA`。
+- [x] 企业定制全量清洗：`企业定制品牌`/`Enterprise` → `KOKA`/`KOKALabel`（19 文件、0 残留）；移除企业 logo `assets-logo-enterprise.svg` 与 `favicon.svg`，改用 KOKA 图标；`APP_PROFILE.companyName` 改回 `KOKA`。
 - [x] 账号 / 后端回归 9.8 三级：`js/auth.js`（仓库 9.8 版 + 访客门控适配 v12.9 五页布局）、`functions/`（`/api/default` 契约，移除 `/api/quote`）、`login.html` / `js/login.js`、`app.js` 云上传契约。
 - [x] 保留本仓库身份：`wrangler.toml` / `assets/` / `robots.txt` / `_headers` / `docs/ai/*` / 既有 `docs/*` / `tests/*`。
 - [x] 版本号全站 v12.9 → **v13.0** + 双份 CHANGELOG + 部署日志 + `docs/回搬记录-v13.0.md` + `docs/upstream/`（同事文档清洗下沉）。
