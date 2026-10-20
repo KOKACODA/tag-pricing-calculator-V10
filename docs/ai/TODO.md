@@ -27,6 +27,7 @@
 - [x] 账号 / 后端回归 9.8 三级：`js/auth.js`（仓库 9.8 版 + 访客门控适配 v12.9 五页布局）、`functions/`（`/api/default` 契约，移除 `/api/quote`）、`login.html` / `js/login.js`、`app.js` 云上传契约。
 - [x] 保留本仓库身份：`wrangler.toml` / `assets/` / `robots.txt` / `_headers` / `docs/ai/*` / 既有 `docs/*` / `tests/*`。
 - [x] 版本号全站 v12.9 → **v13.0** + 双份 CHANGELOG + 部署日志 + `docs/回搬记录-v13.0.md` + `docs/upstream/`（同事文档清洗下沉）。
+- [x] 推送 GitHub `v8`（`d2a98e0`）+ tag `v13.0`；wrangler 部署 CF 项目 `tag-pricing-calculator-v5`（部署号 `20049edc`），生产验证通过（title v13.0 / KOKA 品牌 / `/api/default` / 三级角色）。
 - [x] 测试对齐 v12.9 行为（4 用例修订：`bleed` 报价表级 / 组名「唛头小组」/ 迁移终态 11.4 / `escapeHtml(null)→""` / `roleNum()` 门控），全量 **56 项 → 51 通过 / 5 跳过 / 0 失败**。
 
 ---
