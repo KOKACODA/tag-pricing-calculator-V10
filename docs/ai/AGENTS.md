@@ -31,6 +31,7 @@ KOKALabel 报价系统：**吊牌 / 标签 / 不干胶印刷报价计算器**，
 - `main` = 已与 `v8` 同步。
 - GitHub 仓库：`KOKACODA/tag-pricing-calculator-V10`（旧地址 `tag-pricing-calculator-v5` 自动重定向）。
 - **Git 自动部署已断**（仓库改名导致 Cloudflare Pages Git 集成失效）：发版需 `wrangler pages deploy` 直传，需 `CLOUDFLARE_API_TOKEN`，详见 `docs/部署日志.md` 最新条目。
+- ⚠️ `functions/archive/_middleware.js`：拦截 `/archive/*` 返回 404，防止同事版历史归档（含企业定制品牌）被公网读取。**勿删**（Pages 直传不支持 `.assetsignore`，只能用 Functions 拦截）。
 - `archive/` 为同事版归档（V9 系列 vice 后缀 / V10 系列），仅记录不部署，通常不动。
 - 旧 v7.10 谱系（独立 git 历史）经本地备份 tag `archive/v7.10-main` 追溯，见 `docs/项目历史与技术总档案.md`。
 
