@@ -55,7 +55,7 @@ test("默认包含三个报价表组，getGroupName 可解析组名", () => {
   assert.equal(groups.length, 3);
   assert.equal(m.getGroupName("group1"), "1楼小组");
   assert.equal(m.getGroupName("group2"), "3楼小组");
-  assert.equal(m.getGroupName("group3"), "唛头报价");
+  assert.equal(m.getGroupName("group3"), "唛头小组");
   assert.equal(m.getGroupName("not_exist"), "未分组");
 });
 
@@ -109,15 +109,17 @@ test("删除报价表组：空组可删；有报价表的组与最后一个组�
   assert.equal(m.deletePriceListGroup("group3").ok, false);
 });
 
-test("默认包含「唛头」报价表：2 张纸，不出血且含备注", () => {
+test("默认包含「唛头报价表」：group3、不出血、含备注、2 张纸", () => {
   const m = loadDataModule(createMemoryStorage());
-  const pl = m.priceLists.find(p => p.name === "唛头");
-  assert.ok(pl, "应存在默认报价表「唛头」");
+  const pl = m.priceLists.find(p => p.name === "唛头报价表");
+  assert.ok(pl, "应存在默认报价表「唛头报价表」");
+  assert.equal(pl.id, "priceList3");
   assert.equal(pl.groupId, "group3");
+  // v11.4：不出血改为报价表级 `bleed` 字段（原 v10.9 为纸张级 hasBleed），两张纸合并入同一报价表
+  assert.equal(pl.bleed, false, "唛头报价表默认不出血");
+  assert.ok(pl.note && pl.note.trim().length > 0, "唛头报价表含备注");
   const papers = m.getPapersByPriceList(pl.id);
   assert.equal(papers.length, 2);
-  assert.ok(papers.every(p => p.hasBleed === false), "唛头默认不出血");
-  assert.ok(papers.every(p => p.notes && p.notes.trim().length > 0), "唛头纸张含备注");
   assert.equal(papers[0].shortName, "织边带（消光带）");
   assert.equal(papers[1].shortName, "电脑机");
 });
@@ -225,9 +227,9 @@ test("app.js：在线修改渲染 / 权限门控 / 模板导入导出 / 事件�
   const src = fs.readFileSync(path.join(projectRoot, "js", "app.js"), "utf8");
   // 切到 online 标签时刷新渲染
   assert.match(src, /if \(tabName === "online"\) renderOnlineManager\(\)/);
-  // 权限：http 部署仅管理员，本地离线放行
+  // 权限：http 部署仅管理员（v12.9 用 roleNum() 判定，admin=3、sales=1、guest=0），本地离线放行
   assert.match(src, /function isOnlineEditAdmin\(\)/);
-  assert.match(src, /KOKA\.user && KOKA\.user\.role === "admin"/);
+  assert.match(src, /KOKA\.roleNum && KOKA\.roleNum\(\) >= 2/);
   // 渲染与事件委托
   assert.match(src, /function renderOnlineManager\(\)/);
   assert.match(src, /handleOnlineGroupsClick/);

@@ -104,11 +104,11 @@ test("v9.7.3 默认工艺：27 组 1 楼工艺段，paper2_1 为 5 项 7 档", (
   assert.equal(Object.keys(c1[0].prices).length, 7);
 });
 
-test("v9.9.0 迁移（v10.6 基线）：老用户（9.0.1）1 楼替换为 33 组，3 楼改价保留，工艺重建", () => {
+test("迁移链（v13.0 含 v10.8/11.4）：老用户（9.0.1）1 楼替换为 33 组，3 楼改价保留，工艺重建", () => {
   const store = legacyStore();
   const api = loadDataJs(store);
 
-  assert.equal(api.dataVersion, "9.9.0"); // v10.6 基线:同事版迁移链 9.5.1→9.9.0(无 9.7.3 步)
+  assert.equal(api.dataVersion, "11.4"); // v13.0：迁移链 9.5.1→9.9.0→10.8.0→11.4（唛头合并终态）
   const f1 = api.papers.filter(p => p.priceListId === "priceList1");
   const f3 = api.papers.filter(p => p.priceListId === "priceList2");
   assert.equal(f1.length, 33, "1 楼应为新默认 33 组");
@@ -121,14 +121,14 @@ test("v9.9.0 迁移（v10.6 基线）：老用户（9.0.1）1 楼替换为 33 �
   assert.equal(Object.keys(api.crafts).filter(k => /^paper2_\d+$/.test(k)).length, 27);
 });
 
-test("v9.9.0 迁移幂等：已是 9.9.0 的用户再次加载不重复迁移（v10.6 基线）", () => {
+test("迁移幂等：迁移到 11.4 后再次加载不重复迁移", () => {
   const store = legacyStore();
-  loadDataJs(store); // 第一次：迁移至 9.9.0（v10.6 基线）
-  assert.equal(JSON.parse(store.get("tagPricing_dataVersion")), "9.9.0"); // 存储值经过 JSON.stringify
+  loadDataJs(store); // 第一次：迁移至终态 11.4
+  assert.equal(JSON.parse(store.get("tagPricing_dataVersion")), "11.4"); // 存储值经过 JSON.stringify
   const papersAfterFirst = JSON.parse(store.get("tagPricing_paperConfig"));
   assert.equal(papersAfterFirst.filter(p => p.priceListId === "priceList1").length, 33);
 
   const api2 = loadDataJs(store); // 第二次：应跳过迁移
   assert.equal(api2.papers.filter(p => p.priceListId === "priceList1").length, 33);
-  assert.equal(api2.dataVersion, "9.9.0");
+  assert.equal(api2.dataVersion, "11.4");
 });

@@ -5,7 +5,7 @@
 ## 品牌基调
 
 - 品牌：**KOKALabel**，主色为 KOKA 蓝，视觉语言偏「扁平、留白、卡片化」。
-- 图标：`assets/` 下 KOKA 菱形铅笔标（favicon / apple-touch-icon）。**不使用**任何「亲成」风格素材。
+- 图标：`assets/` 下 KOKA 菱形铅笔标（favicon / apple-touch-icon）。**不使用**任何企业定制版图标/品牌素材（v13.0 回搬已全量清洗）。
 
 ## 设计 Token（`css/style.css` → `:root`，改色优先改这些变量）
 

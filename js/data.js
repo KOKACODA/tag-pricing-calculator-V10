@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v10.9.0 - 数据配置层
+// KOKALabel报价系统 v13.0 - 数据配置层
 // ============================================================
 "use strict";
 
@@ -41,11 +41,10 @@ const GROUP_META = {
 };
 
 // v8.0：小组名映射（按报价表 groupId 取小组名，供导出/展示使用）
-// v10.9.0：新增「唛头报价」小组
 const GROUP_NAME_MAP = {
   group1: "1楼小组",
   group2: "3楼小组",
-  group3: "唛头报价"
+  group3: "唛头小组"
 };
 
 // EPHEMERAL_KEYS 提前定义为空数组（不拦截任何 key），供 loadFromStorage 安全调用
@@ -53,20 +52,30 @@ const GROUP_NAME_MAP = {
 const EPHEMERAL_KEYS = [];
 
 // v10.7.0：报价表组可在线增删改名（默认沿用原有两组，向后兼容旧 localStorage，对齐 v9.8 体系）
-// v10.9.0：新增「唛头报价」组（默认报价表组）
 const DEFAULT_PRICE_LIST_GROUPS = [
   { id: "group1", name: "1楼小组" },
   { id: "group2", name: "3楼小组" },
-  { id: "group3", name: "唛头报价" }
+  { id: "group3", name: "唛头小组" }
 ];
 let PRICE_LIST_GROUPS = loadFromStorage("priceListGroups", DEFAULT_PRICE_LIST_GROUPS.map(g => ({ ...g })));
 
 // 报价表组配置：支持多个报价表，吊绳/邮费按报价表隔离
-// v10.9.0：新增「唛头」报价表（默认报价表，归属唛头报价组）
+// v10.8.0：报价表新增两个字段
+//   bleed —— 是否出血（默认 true）。false 时计算面积不再自动加 3mm 出血，
+//            且「最大含出血面积」列按区间向上取档（取最小的 ≥ 实际面积那档）。
+//   note  —— 报价表备注，在「报价表组查询」页顶部独立框体展示。
 const DEFAULT_PRICE_LISTS = [
-  { id: "priceList1", name: "1楼", groupId: "group1" },
-  { id: "priceList2", name: "3楼", groupId: "group2" },
-  { id: "priceList3", name: "唛头", groupId: "group3" }
+  { id: "priceList1", name: "1楼", groupId: "group1", bleed: true, note: "" },
+  { id: "priceList2", name: "3楼", groupId: "group2", bleed: true, note: "" },
+  {
+    // v11.4：织边带（消光带）与电脑机合并为单张「唛头报价表」——
+    // 两张纸（paper_qm_zbd / paper_qm_dnj）同属本报价表，Excel 导出/模板按纸张简称分 Sheet
+    id: "priceList3",
+    name: "唛头报价表",
+    groupId: "group3",
+    bleed: false,
+    note: "唛头-1：织边带（消光带）\n特点：常做黑白色、米色，出货快；印刷清晰、手感柔软、边缘光滑、图案清晰。\n备注：如有专色或按潘通号印刷，另加10元/款。\n\n唛头-2：电脑机织唛\n特点：底色可做多种颜色，字可做细密清晰，尺寸不限；面料厚实、表面紧密，纬高图案细腻精美。"
+  }
 ];
 let PRICE_LISTS = loadFromStorage("priceLists", DEFAULT_PRICE_LISTS.map(p => ({ ...p })));
 let CURRENT_PRICE_LIST_ID = loadFromStorage("currentPriceListId", "priceList1");
@@ -7837,13 +7846,11 @@ const DEFAULT_PAPER_CONFIG = [
     ]
   },
   {
-    "id": "paperMatouZhibian",
+    "id": "paper_qm_zbd",
     "name": "唛头-1：织边带（消光带）",
     "shortName": "织边带（消光带）",
     "priceListId": "priceList3",
     "discount": 1,
-    "hasBleed": false,
-    "notes": "特点：常做黑白色、米色，出货快；印刷清晰、手感柔软、边缘光滑、图案清晰。备注：如有专色或按潘通号印刷，另加10元/款。",
     "directCoeff": null,
     "batchDirect": null,
     "specs": [
@@ -7976,13 +7983,11 @@ const DEFAULT_PAPER_CONFIG = [
     ]
   },
   {
-    "id": "paperMatouDiannaoji",
+    "id": "paper_qm_dnj",
     "name": "唛头-2：电脑机织唛",
     "shortName": "电脑机",
     "priceListId": "priceList3",
     "discount": 1,
-    "hasBleed": false,
-    "notes": "特点：底色可做多种颜色，字可做细密清晰，尺寸不限；面料厚实、表面紧密，纬高图案细腻精美。",
     "directCoeff": null,
     "batchDirect": null,
     "specs": [
@@ -10751,10 +10756,9 @@ const DIRECT_COEFF_LEVELS = DEFAULT_DIRECT_COEFF_LEVELS.map(l => ({ ...l }));
 })();
 
 // v8.0 迁移：重构为 2 个报价表（1楼 34 纸 + 3楼 10 纸），覆盖纸张与邮费数据
+// v11.3 审查修复：补 dataVersion 守卫——原实现仅靠结构特征判断，v10.8+ 用户（报价表 > 2 张）
+// 每次加载都会触发重置，本地改价在刷新后丢失（网页版被云端轮询掩盖）。
 (function migrateV8Restructure() {
-  // v10.9.0：增加版本守卫。DEFAULT_PRICE_LISTS 自本版起含第 3 个默认报价表「唛头」
-  // （priceList3），旧的「报价表数>2 / 含 priceList3」结构判旧会误伤 v8.0+ 现代用户，
-  // 已到 v8.0 的用户本就不需要 v8 重构，直接跳过，避免覆盖其用户改价（如 3 楼 discount）。
   const dataVersion = loadFromStorage("dataVersion", "");
   if (verCompare(dataVersion, "8.0") >= 0) return;
   // 旧结构特征：报价表数 > 2，或存在 3/4 号报价表，或报价表名不含"楼"
@@ -10855,9 +10859,7 @@ function verCompare(a, b) {
   if (Array.isArray(stored) && stored.length) {
     const floor3 = stored.filter(p => p.priceListId === "priceList2");
     const floor1 = DEFAULT_PAPER_CONFIG.filter(p => p.priceListId === "priceList1").map(p => JSON.parse(JSON.stringify(p)));
-    // v10.9.0：保留非 1/3 楼的其它报价表纸张（如「唛头」priceList3），避免重建时被丢弃
-    const others = stored.filter(p => p.priceListId !== "priceList1" && p.priceListId !== "priceList2");
-    PAPER_CONFIG = floor1.concat(floor3, others); // v10.6.0 修复：同事版只写存储不同步内存，导致本会话残留旧数据，需刷新才正常
+    PAPER_CONFIG = floor1.concat(floor3); // v10.6.0 修复：同事版只写存储不同步内存，导致本会话残留旧数据，需刷新才正常
     saveToStorage("paperConfig", PAPER_CONFIG);
   }
   const storedCraft = loadFromStorage("craftConfig", null);
@@ -10897,16 +10899,97 @@ function verCompare(a, b) {
   console.info("[v9.9.0] 吊绳价格已切换为 1000 张基准倍数制（500 张与 1000 张同价）");
 })();
 
+/**
+ * v10.8.0 迁移：
+ *  1) 报价表补齐 bleed（是否出血，默认 true）与 note（备注）两个新字段；
+ *  2) 补齐「唛头小组」及两张唛头报价表（织边带（消光带）/ 电脑机）；
+ *  3) 补齐对应的两张唛头纸张配置。
+ * 三者都是"仅在缺失时补齐"，不会覆盖用户已有数据。
+ */
+(function migrateV1080BleedAndMaitou() {
+  const dataVersion = loadFromStorage("dataVersion", "");
+  if (verCompare(dataVersion, "10.8.0") >= 0) return;
+
+  // 1) 报价表补齐新字段
+  let listsChanged = false;
+  PRICE_LISTS.forEach(pl => {
+    if (typeof pl.bleed === "undefined") { pl.bleed = true; listsChanged = true; }
+    if (typeof pl.note === "undefined") { pl.note = ""; listsChanged = true; }
+  });
+
+  // 2) 补齐「唛头小组」组 + 两张唛头报价表
+  if (!PRICE_LIST_GROUPS.some(g => g.id === "group3")) {
+    PRICE_LIST_GROUPS.push({ id: "group3", name: "唛头小组" });
+    GROUP_NAME_MAP.group3 = "唛头小组";
+    saveToStorage("priceListGroups", PRICE_LIST_GROUPS);
+  }
+  DEFAULT_PRICE_LISTS.filter(d => d.groupId === "group3").forEach(d => {
+    if (!PRICE_LISTS.some(p => p.id === d.id)) {
+      PRICE_LISTS.push({ ...d });
+      listsChanged = true;
+    }
+  });
+  if (listsChanged) saveToStorage("priceLists", PRICE_LISTS);
+
+  // 3) 补齐唛头纸张（深拷贝，避免与 DEFAULT_PAPER_CONFIG 共享引用）
+  //    v11.4：唛头合并后只有一张报价表（priceList3），纸张默认归属 priceList3
+  const existIds = new Set(PAPER_CONFIG.map(p => p.id));
+  const addPapers = DEFAULT_PAPER_CONFIG
+    .filter(p => p.priceListId === "priceList3")
+    .filter(p => !existIds.has(p.id))
+    .map(p => JSON.parse(JSON.stringify(p)));
+  if (addPapers.length) {
+    PAPER_CONFIG = PAPER_CONFIG.concat(addPapers);
+    saveToStorage("paperConfig", PAPER_CONFIG);
+  }
+
+  saveToStorage("dataVersion", "10.8.0");
+  console.info("[v10.8.0] 报价表「是否出血」字段与唛头报价数据已就绪（v11.4 起唛头合并为单张报价表）");
+})();
+
+// v11.4 迁移：合并织边带（priceList3）与电脑机（priceList4）为单张「唛头报价表」——
+// 两张纸（paper_qm_zbd / paper_qm_dnj）同属 priceList3，Excel 导出/模板按纸张简称分 Sheet。
+// 只补缺不覆盖：priceList4 不存在（新装/已合并）时仅推进 dataVersion 基线。
+(function migrateV1140MergeMaitou() {
+  const dataVersion = loadFromStorage("dataVersion", "");
+  if (verCompare(dataVersion, "11.4") >= 0) return;
+
+  const pl3 = PRICE_LISTS.find(p => p.id === "priceList3");
+  const pl4 = PRICE_LISTS.find(p => p.id === "priceList4");
+  if (pl3 && pl4) {
+    // 1) 报价表改名 + 合并备注（织边带在前，空行分隔）
+    pl3.name = "唛头报价表";
+    const notes = [pl3.note, pl4.note].map(s => String(s || "").trim()).filter(Boolean);
+    pl3.note = notes.join("\n\n");
+    pl3.bleed = false; // 两张表均为不出血，合并后保持一致
+    // 2) 电脑机纸张归入唛头报价表（priceListId 重指）
+    let papersChanged = false;
+    PAPER_CONFIG.forEach(p => {
+      if (p.priceListId === "priceList4") { p.priceListId = "priceList3"; papersChanged = true; }
+    });
+    // 3) 移除 priceList4 报价表；当前报价表指向它时切回 priceList3
+    PRICE_LISTS = PRICE_LISTS.filter(p => p.id !== "priceList4");
+    if (CURRENT_PRICE_LIST_ID === "priceList4") CURRENT_PRICE_LIST_ID = "priceList3";
+    saveToStorage("priceLists", PRICE_LISTS);
+    if (papersChanged) saveToStorage("paperConfig", PAPER_CONFIG);
+    saveToStorage("currentPriceListId", CURRENT_PRICE_LIST_ID);
+    console.info("[v11.4] 唛头已合并为单张报价表（织边带（消光带）+ 电脑机 → 唛头报价表，Excel 按纸张简称分 Sheet）");
+  }
+  saveToStorage("dataVersion", "11.4");
+})();
+
 let APP_PROFILE = loadFromStorage("appProfile", {
-  companyName: "KOKALabel",
+  companyName: "KOKA",
   companyPhone: null,
   defaultTier: null,
   defaultRope: "rope1",
   defaultPaperId: null,
   defaultSizeType: "single",
   hidePaperIndex: true,
-  paperSelectMode: "grid",
-  decimalPlaces: 2
+  paperSelectMode: "dropdown",
+  decimalPlaces: 2,
+  // v12.9：规格匹配方式（table=表格匹配，默认｜rule=规则匹配）
+  specMatchMode: "table"
 });
 // 旧版配置容错
 if (typeof APP_PROFILE.defaultRope === "undefined") APP_PROFILE.defaultRope = "rope1";
@@ -10914,8 +10997,120 @@ if (typeof APP_PROFILE.defaultPaperId === "undefined") APP_PROFILE.defaultPaperI
 if (typeof APP_PROFILE.defaultSizeType === "undefined") APP_PROFILE.defaultSizeType = "single";
 // v10.0：纸张材质序号显示开关（默认隐藏）
 if (typeof APP_PROFILE.hidePaperIndex === "undefined") APP_PROFILE.hidePaperIndex = true;
-// v10.1：纸张材质选择模式（grid=芯片平铺默认 / dropdown=下拉搜索）
-if (typeof APP_PROFILE.paperSelectMode === "undefined") APP_PROFILE.paperSelectMode = "grid";
+// v10.1：纸张材质选择模式（grid=芯片平铺 / dropdown=下拉搜索）
+// v12.2 修正：默认应为「下拉框」（v10.1 引入时误设为 grid，经 git 考古确认全程仅那一次设定、从未改动）。
+// 一次性迁移：存量用户（无论存的是 grid 还是无值）统一改为 dropdown；
+// 迁移标记设置后，用户此后手动选择的模式（含改回 grid）永久保留，不再被迁移覆盖。
+if (typeof APP_PROFILE.paperSelectMode === "undefined") APP_PROFILE.paperSelectMode = "dropdown";
+// v12.9：规格匹配方式（table=表格匹配 / rule=规则匹配）——导入旧备份缺失该字段时回退表格匹配
+if (typeof APP_PROFILE.specMatchMode === "undefined") APP_PROFILE.specMatchMode = "table";
+if (!APP_PROFILE.paperSelectModeMigrated) {
+  if (APP_PROFILE.paperSelectMode !== "dropdown") APP_PROFILE.paperSelectMode = "dropdown";
+  APP_PROFILE.paperSelectModeMigrated = true;
+  saveToStorage("appProfile", APP_PROFILE);
+  console.info("[v12.2] 纸张材质选择模式默认已修正为「下拉框」（可在报价设置中改回芯片平铺）");
+}
+
+// ============================================================
+// ============== v12.9：规格匹配规则（「规则匹配」数据源） ==============
+// ------------------------------------------------------------
+// 两种匹配方式（报价设置 → 默认选项 → 规格匹配方式）：
+//   表格匹配（table，默认）—— 用纸张规格表的「最大含出血面积」列匹配，
+//                              并保留 v7.3 的 005/055/006 强制映射（行为与 v12.8 完全一致）
+//   规则匹配（rule）       —— 用本规则表按「面积上限」匹配；
+//                              **价格仍取表格中该代码的价格**，「最大含出血面积」列不参与
+// 规则集：global = 全局（除织唛外的所有报价表）｜ <织唛报价表 id> = 织唛专用
+// ============================================================
+const DEFAULT_SPEC_MATCH_RULES_GLOBAL = [
+  { code: "002", maxArea: 1999 },
+  { code: "003", maxArea: 2999 },
+  { code: "004", maxArea: 3999 },
+  { code: "005", maxArea: 4999 },
+  { code: "055", maxArea: 5499 },
+  { code: "006", maxArea: 5999 },
+  { code: "007", maxArea: 6999 },
+  { code: "008", maxArea: 7999 },
+  { code: "009", maxArea: 8999 },
+  { code: "100", maxArea: 10000 }
+];
+// 织唛：代码本身即「宽(cm)×长(cm)」，长固定 8cm → 面积上限 = 宽(cm) × 800
+const DEFAULT_SPEC_MATCH_RULES_MAITOU = [
+  { code: "1.3*8", maxArea: 1040 },
+  { code: "1.6*8", maxArea: 1280 },
+  { code: "2*8", maxArea: 1600 },
+  { code: "2.5*8", maxArea: 2000 },
+  { code: "3*8", maxArea: 2400 },
+  { code: "3.5*8", maxArea: 2800 },
+  { code: "4*8", maxArea: 3200 },
+  { code: "4.5*8", maxArea: 3600 },
+  { code: "5*8", maxArea: 4000 }
+];
+
+function cloneSpecRules(rows) {
+  return (rows || []).map(r => ({ code: r.code, maxArea: r.maxArea }));
+}
+/** 织唛报价表 id —— 用于区分「织唛专用规则集」（按组判定，报价表改名/重建仍可识别） */
+function getMaitouPriceListId() {
+  const pl = (PRICE_LISTS || []).find(p => p.groupId === "group3");
+  return pl ? pl.id : "priceList3";
+}
+function defaultSpecMatchRules() {
+  const out = { global: cloneSpecRules(DEFAULT_SPEC_MATCH_RULES_GLOBAL) };
+  out[getMaitouPriceListId()] = cloneSpecRules(DEFAULT_SPEC_MATCH_RULES_MAITOU);
+  return out;
+}
+let SPEC_MATCH_RULES = loadFromStorage("specMatchRules", defaultSpecMatchRules());
+// 结构容错（老版本升级 / 手工改坏 localStorage）
+if (!SPEC_MATCH_RULES || typeof SPEC_MATCH_RULES !== "object" || Array.isArray(SPEC_MATCH_RULES)) {
+  SPEC_MATCH_RULES = defaultSpecMatchRules();
+}
+if (!Array.isArray(SPEC_MATCH_RULES.global) || !SPEC_MATCH_RULES.global.length) {
+  SPEC_MATCH_RULES.global = cloneSpecRules(DEFAULT_SPEC_MATCH_RULES_GLOBAL);
+}
+(function ensureMaitouRules() {
+  const k = getMaitouPriceListId();
+  if (!Array.isArray(SPEC_MATCH_RULES[k]) || !SPEC_MATCH_RULES[k].length) {
+    SPEC_MATCH_RULES[k] = cloneSpecRules(DEFAULT_SPEC_MATCH_RULES_MAITOU);
+  }
+})();
+
+/** 当前规格匹配方式：table（默认）/ rule */
+function getSpecMatchMode() {
+  return (APP_PROFILE && APP_PROFILE.specMatchMode === "rule") ? "rule" : "table";
+}
+/** 取某报价表适用的规则集（织唛 → 专用；其余 → 全局） */
+function getSpecRulesFor(priceListId) {
+  const key = (priceListId === getMaitouPriceListId()) ? priceListId : "global";
+  const set = SPEC_MATCH_RULES && SPEC_MATCH_RULES[key];
+  if (Array.isArray(set) && set.length) return set;
+  return (SPEC_MATCH_RULES && SPEC_MATCH_RULES.global) || [];
+}
+/** 保存规则集（key：global / 织唛报价表 id）；自动清洗并按面积升序 */
+function setSpecRules(key, rows) {
+  if (!SPEC_MATCH_RULES) SPEC_MATCH_RULES = defaultSpecMatchRules();
+  SPEC_MATCH_RULES[key] = (rows || [])
+    .map(r => ({ code: String(r.code == null ? "" : r.code).trim(), maxArea: Number(r.maxArea) }))
+    .filter(r => r.code && isFinite(r.maxArea) && r.maxArea > 0)
+    .sort((a, b) => a.maxArea - b.maxArea);
+  saveToStorage("specMatchRules", SPEC_MATCH_RULES);
+}
+/**
+ * 按规则匹配规格代码（v12.9）。
+ * 命中条件：面积 ≤ 规则的「面积上限」，取第一条满足的规则；价格沿用该代码在表格中的价格。
+ * 返回 null 的情况（由调用方回退表格匹配）：
+ *   ① 面积超过规则表最大上限；② 命中的代码在该纸张规格表中不存在。
+ */
+function matchSpecByRules(paper, area) {
+  if (!paper || !Array.isArray(paper.specs)) return null;
+  const rules = getSpecRulesFor(paper.priceListId);
+  for (let i = 0; i < rules.length; i++) {
+    if (area <= Number(rules[i].maxArea)) {
+      const spec = paper.specs.find(s => s.code === rules[i].code);
+      return spec ? { ...spec } : null;
+    }
+  }
+  return null;
+}
 
 // ============================================================
 // ===================== 报价表组辅助函数 =====================
@@ -10932,6 +11127,24 @@ function getCurrentPriceListId() {
 /** 获取当前报价表对象 */
 function getCurrentPriceList() {
   return PRICE_LISTS.find(p => p.id === CURRENT_PRICE_LIST_ID) || PRICE_LISTS[0];
+}
+/**
+ * v10.8.0：当前报价表是否出血。缺省视为 true（向后兼容旧数据）。
+ * 为 false 时计算面积不再自动加 3mm 出血，直接按实际长宽算面积。
+ */
+function currentPriceListBleeds() {
+  const pl = getCurrentPriceList();
+  return !pl || pl.bleed !== false;
+}
+/** v10.8.0：指定报价表是否出血（缺省 true） */
+function priceListBleeds(priceListId) {
+  const pl = PRICE_LISTS.find(p => p.id === priceListId);
+  return !pl || pl.bleed !== false;
+}
+/** v10.8.0：取报价表备注；无备注返回空串 */
+function getPriceListNote(priceListId) {
+  const pl = PRICE_LISTS.find(p => p.id === priceListId);
+  return pl && typeof pl.note === "string" ? pl.note : "";
 }
 /** 切换当前报价表 */
 function setCurrentPriceList(priceListId) {
@@ -11101,6 +11314,9 @@ function movePriceListToGroup(priceListId, groupId) {
 function applyPriceListData(priceListId, parsed) {
   const pl = PRICE_LISTS.find(p => p.id === priceListId);
   if (!pl) return { ok: false, message: "目标报价表不存在" };
+  // v10.8.0：同步报价表级的「是否出血」「备注」（Excel 未指定时保持原值不动）
+  if (parsed && parsed.bleed !== undefined && parsed.bleed !== null) pl.bleed = parsed.bleed;
+  if (parsed && parsed.note != null && parsed.note !== "") pl.note = parsed.note;
   const papers = (parsed && parsed.papers) || [];
   if (!papers.length) return { ok: false, message: "解析结果中没有纸张数据" };
   // 1. 清理目标报价表的旧纸张及其工艺

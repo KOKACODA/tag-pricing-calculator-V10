@@ -1,5 +1,5 @@
 // ============================================================
-// KOKALabel报价系统 v10.9.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
+// KOKALabel报价系统 v13.0 - 主程序（计算 + 渲染 + 交互 + 初始化）
 // ============================================================
 "use strict";
 
@@ -96,15 +96,31 @@ function formatPriceRaw(value) {
 const INITIAL_OPTION_PRICE_TIER = 1000;
 
 // v9.9：吊绳 1000 张基准价——优先取 1000 档，缺省回退 500 档（两者同价）
-// v10.8.0：允许 0 作为有效基准价（「不加吊绳」全 0 定价属于合法情形，不应再报
-// 「未设置 1000 张基准价」；0 表示免费，仍需按 0 计价）。
 function getRopeBasePrice(prices) {
   if (!prices) return null;
   let v = prices["1000"] != null && prices["1000"] !== "" ? Number(prices["1000"]) : NaN;
-  if (isNaN(v)) {
+  if (isNaN(v) || v <= 0) {
     v = prices["500"] != null && prices["500"] !== "" ? Number(prices["500"]) : NaN;
   }
-  return isNaN(v) || v === null ? null : v;
+  return isNaN(v) || v <= 0 ? null : v;
+}
+
+/**
+ * v10.8.0：判断吊绳是否为「不加吊绳」这类免费选项。
+ * 判定：价格表中至少有一个显式 0，且不存在任何正数价格。
+ * 用途：全 0 价是合法的「免费」定价，不能因 getRopeBasePrice 返回 null 就被误判为缺价。
+ */
+function isFreeRope(rope) {
+  if (!rope || !rope.prices) return false;
+  const vals = Object.values(rope.prices);
+  if (!vals.length) return false;
+  let hasZero = false;
+  for (const v of vals) {
+    const n = Number(v);
+    if (Number.isFinite(n) && n > 0) return false;
+    if (n === 0) hasZero = true;
+  }
+  return hasZero;
 }
 
 function getInitialOptionPrice(prices) {
@@ -283,7 +299,7 @@ function computeDirectTempTotals(result, rawValues) {
     // 基础价：乘面积系数后的原价
     const base = sd.originalUnitPrice != null ? sd.originalUnitPrice : sd.unitPrice;
     // 无直接系数的纸张：有折扣打折扣，无折扣则原价
-    const discount = hasDirect ? 1 : (paper ? (paper.discount || 1) : 1);
+    const discount = hasDirect ? 1 : (paper ? getEffectiveDiscount(paper) : 1);
     // v7.2：工艺价先加到纸张价上再乘系数：(纸张价 + 工艺价) × 系数
     const craftOfSheet = sd.sheetCraftTotal || 0;
     const price = (base * discount + craftOfSheet) * c;
@@ -294,12 +310,10 @@ function computeDirectTempTotals(result, rawValues) {
 }
 
 /**
- * 计算单张面积。出血打开（默认）时四周各加 3mm；关闭时不加出血。
- * @param {boolean} hasBleed
+ * 计算含出血的单张面积。
  */
-function calcBleedArea(length, width, hasBleed = true) {
-  const bleed = hasBleed ? 3 : 0;
-  return (length + bleed) * (width + bleed);
+function calcBleedArea(length, width) {
+  return (length + 3) * (width + 3);
 }
 
 /**
@@ -412,55 +426,23 @@ function forceSpecByArea(paper, area) {
 }
 
 /**
- * v10.8.0：不出血（是否出血=否）时使用的面积区间档位。
- * 模板仍按「最大含出血面积」字段读取，但匹配不再沿用原「向上取最小 >= 面积」逻辑，
- * 而是把面积套进固定区间 [0,1040,1280,1600,2000,2400,2800,3200,3600,4000]，
- * 取所属区间的上限档位；超出最大区间时用最大规格并附面积系数。不套用 005/055/006 强制映射。
- */
-const BLEED_OFF_INTERVALS = [0, 1040, 1280, 1600, 2000, 2400, 2800, 3200, 3600, 4000];
-
-function matchSpecNoBleed(paper, area) {
-  const upperBrackets = BLEED_OFF_INTERVALS.slice(1); // 1040 … 4000
-  let upper = null;
-  for (const b of upperBrackets) {
-    if (area <= b) { upper = b; break; }
-  }
-  // 优先按固定区间精确落档（唛头等不出血报价表的规格 maxArea 即这些区间值）
-  if (upper != null) {
-    const spec = paper.specs.find(s => s.maxArea === upper);
-    if (spec) {
-      return (spec.code === "007" || spec.code === "008") ? { ...spec, code: "007/008" } : spec;
-    }
-  }
-  // 兜底：向上取最小满足面积的规格（不套用强制规格映射）
-  const candidates = paper.specs.filter(s => s.maxArea >= area).sort((a, b) => a.maxArea - b.maxArea);
-  if (candidates.length) {
-    const spec = candidates[0];
-    return (spec.code === "007" || spec.code === "008") ? { ...spec, code: "007/008" } : spec;
-  }
-  const lastSpec = paper.specs[paper.specs.length - 1];
-  if (lastSpec) {
-    const coeff = calcAreaCoefficient(area);
-    return (lastSpec.code === "007" || lastSpec.code === "008")
-      ? { ...lastSpec, code: "007/008", areaCoefficient: coeff }
-      : { ...lastSpec, areaCoefficient: coeff };
-  }
-  return { error: true, message: "未找到匹配规格" };
-}
-
-/**
  * 根据有效面积向上匹配尺寸规格。
  * 面积超过 10000 时使用最大规格（code "100"）并附带面积系数；007 与 008 合并显示为 007/008。
  * v7.3：面积 4000-6000 时强制映射 005/055/006，不读取表格数据。
- * v10.8.0：新增 hasBleed 参数——false 时走区间匹配（matchSpecNoBleed）。
  */
-function matchSpec(paper, area, hasBleed = true) {
-  if (!hasBleed) {
-    return matchSpecNoBleed(paper, area);
+function matchSpec(paper, area, skipForce) {
+  // v12.9：规则匹配——按「匹配规则」表选定代码（价格仍取表格中该代码的价格），
+  //        「最大含出血面积」列不参与；未命中（超出规则上限 / 该纸无此代码）时回退表格逻辑
+  if (getSpecMatchMode() === "rule") {
+    const byRule = matchSpecByRules(paper, area);
+    if (byRule) return byRule;
+  } else if (!skipForce) {
+    // v7.3：强制面积规格映射（不读取表格数据）
+    // v10.8.0：不出血的报价表跳过该硬编码规则（005/055/006 是吊牌专用）
+    // v12.9：该硬编码仅属于「表格匹配」，规则匹配不调用
+    const forced = forceSpecByArea(paper, area);
+    if (forced) return forced;
   }
-  // v7.3：强制面积规格映射（不读取表格数据）
-  const forced = forceSpecByArea(paper, area);
-  if (forced) return forced;
   const candidates = paper.specs
     .filter(s => s.maxArea >= area)
     .sort((a, b) => a.maxArea - b.maxArea);
@@ -491,7 +473,9 @@ function hasExactTier(pricesObj, tier) {
   if (!pricesObj) return false;
   const v = pricesObj[tier];
   // v8.5：空字符串视为无价格（Number("") === 0，会导致空档位被误判为价格 0）
-  return v != null && v !== "" && !isNaN(Number(v));
+  // v11.5 修复（B2）：空白字符串 " " 同理——Number(" ") === 0，Excel 单元格含空格会被当合法 0 价
+  if (v == null || v === "" || (typeof v === "string" && v.trim() === "")) return false;
+  return !isNaN(Number(v));
 }
 
 /**
@@ -500,6 +484,11 @@ function hasExactTier(pricesObj, tier) {
 function calculate(inputs) {
   const { sheetCount, tier, sheets, ropeId, regionId, mode, shippingWeight, manualShippingPrice } = inputs;
   const isDirect = mode === "direct";
+  // v10.8.0：当前报价表是否出血（默认 true）。为 false 时面积不加 3mm 出血。
+  const bleeds = currentPriceListBleeds();
+  // v11.5 优化（A1）：热路径建一次索引——循环内原为 O(纸张数×报价表纸张数) 的 filter+find
+  // （每纸 1 次 + 每客户等级再各 1 次），大配置（45 纸×33 表纸）单次报价上千次扫描。Map 后 O(1)。
+  const paperById = new Map(getPapersByPriceList(CURRENT_PRICE_LIST_ID).map(p => [p.id, p]));
 
   // 直接系数模式不需要 ropeId 和 regionId
   if (!sheetCount || !tier || !sheets) {
@@ -534,13 +523,13 @@ function calculate(inputs) {
     const { width, length, sizeType, paperId, craftIds } = sheet;
     if (!width || !length || width <= 0 || length <= 0) return null;
 
-    const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === paperId);
+    const paper = paperById.get(paperId);
     if (!paper) return null;
 
-    // v10.8.0：是否出血（默认出血）；出血关闭时面积不加 3mm，并按固定区间匹配规格
-    const hasBleed = paper.hasBleed !== false;
     // 单张面积（单张尺寸 / 展开尺寸目前均按输入长宽直接计算）
-    const singleArea = calcBleedArea(length, width, hasBleed);
+    // v10.8.0：按当前报价表的「是否出血」决定是否加 3mm 出血——
+    //   出血（默认）= 长宽各 +3mm；不出血 = 直接用实际长宽。
+    const singleArea = bleeds ? calcBleedArea(length, width) : length * width;
 
     // 代码选择：优先使用手动指定的代码，否则按面积自动匹配
     let spec;
@@ -548,7 +537,8 @@ function calculate(inputs) {
       spec = findSpecByDisplayCode(paper, sheet.manualCode, singleArea);
     }
     if (!spec) {
-      spec = matchSpec(paper, singleArea, hasBleed);
+      // 不出血的报价表跳过 005/055/006 的强制映射（那是吊牌专用的硬编码规则）
+      spec = matchSpec(paper, singleArea, !bleeds);
     }
     if (spec && spec.error) {
       return { error: spec.message };
@@ -558,7 +548,8 @@ function calculate(inputs) {
     // 纸张配置了 batchDirect 且面积（出血后）在最大面积范围内 → 直接按批量报价
     // 价格固定：不打折、不乘直接系数、不乘面积系数；工艺费用直接叠加
     const bd = paper.batchDirect;
-    const isBatchDirect = !!(bd && bd.maxArea > 0 && singleArea <= bd.maxArea);
+    // v12.4：批量直接报价默认关闭——仅当本次会话明确启用（batchDirectOnCache）时才走批量直接价
+    const isBatchDirect = !!(bd && bd.maxArea > 0 && singleArea <= bd.maxArea) && !!batchDirectOnCache[paper.id];
     let batchDirectPrice = null;
     if (isBatchDirect && hasExactTier(bd.prices, tier)) {
       batchDirectPrice = Number(bd.prices[tier]);
@@ -601,6 +592,9 @@ function calculate(inputs) {
     // v7.0：批量直接报价 → 直接用批量报价价格（不打折、不乘系数）
     // v10.2：标准报价模式工艺费并入纸张价：(纸张价 + 工艺费) 后再乘折扣/面积系数，不再单独列出计算
     //        直接系数模式维持 v7.2 逻辑（baseUnitPrice 不含工艺，报价卡按 (纸张+工艺)×系数）
+    // v12.4：工艺费合计临时覆盖（对非批量直接报价纸张生效）
+    const craftKey = paper.id + "_" + tier;
+    if (!isBatchDirect && craftPriceCache[craftKey] != null) sheetCraftTotal = craftPriceCache[craftKey];
     const craftOfSheet = isBatchDirect ? 0 : sheetCraftTotal;
     const baseOriginalPrice = isBatchDirect
       ? batchDirectPrice
@@ -610,7 +604,7 @@ function calculate(inputs) {
     const baseUnitPrice = isBatchDirect
       ? batchDirectPrice
       : (hasExactTier(spec.prices, tier)
-        ? (Number(spec.prices[tier]) + (isDirect ? 0 : craftOfSheet)) * (isDirect ? (paperHasDirectCoeff(paper) ? 1 : paper.discount) : paper.discount)
+        ? (Number(spec.prices[tier]) + (isDirect ? 0 : craftOfSheet)) * (isDirect ? (paperHasDirectCoeff(paper) ? 1 : getEffectiveDiscount(paper)) : getEffectiveDiscount(paper))
         : null);
     // 纸张最终价（乘面积系数后）
     const paperOriginalPrice = baseOriginalPrice != null ? baseOriginalPrice * areaCoeff : null;
@@ -641,7 +635,11 @@ function calculate(inputs) {
       baseUnitPrice: baseUnitPrice,
       baseOriginalUnitPrice: baseOriginalPrice,
       areaCoefficient: areaCoeff,
-      discount: paper.discount != null ? paper.discount : 1,
+      discount: getEffectiveDiscount(paper),
+      paperId: paper.id,
+      // v12.4：配置折扣≠1 时折扣编辑入口常驻（即便临时改成 1 也可点回）
+      discountEditable: paper.discount != null && paper.discount !== 1,
+      craftTotal: sheetCraftTotal,
       missing: paperUnitPrice == null,
       // v7.0：批量直接报价标记
       isBatchDirect,
@@ -658,11 +656,21 @@ function calculate(inputs) {
   let ropePrice = null;
   let ropeBase = null;    // 1000 张基准价
   let ropeMult = 1;       // 当前档位倍数
+  let ropePriceOverridden = false;  // v10.9.0：吊绳费是否被临时修改（用于高亮提示）
   if (!isDirect) {
     ropeBase = getRopeBasePrice(rope.prices);
+    // v10.8.0：全 0 价的「不加吊绳」视为合法免费选项，基准价补 0，不再误报缺价
+    if (ropeBase == null && isFreeRope(rope)) ropeBase = 0;
     if (ropeBase != null) {
       ropeMult = tier <= 1000 ? 1 : tier / 1000;
       ropePrice = Math.round(ropeBase * ropeMult * 100) / 100;
+      // v10.9.0：吊绳费用临时修改（结果区就地点击编辑）——覆盖当前档位显示价并联动成本/报价；
+      // 覆盖后前面的「¥基准/千张 × 倍数」公式照旧展示原计算过程
+      const ropeOv = ropePriceCache[rope.id + "_" + tier];
+      if (typeof ropeOv === "number" && Number.isFinite(ropeOv) && ropeOv >= 0) {
+        ropePrice = ropeOv;
+        ropePriceOverridden = true;
+      }
     } else {
       hasMissingTier = true;
       warnings.push(`吊绳「${rope.name}」未设置 1000 张基准价`);
@@ -674,6 +682,7 @@ function calculate(inputs) {
   let shippingPrice = null;
   let shippingMode = null;        // "fixed" | "weight" | "manual"
   let shippingWeightUsed = null;  // 用于展示的重量值
+  let shippingPriceOverridden = false;  // v11.0：邮费是否被临时修改（高亮提示）
   if (!isDirect) {
     if (hasExactTier(region.basePrices, tier)) {
       // A：固定档直接查价
@@ -703,6 +712,15 @@ function calculate(inputs) {
         warnings.push(`地区「${region.name}」无 ${tier} 张批量定价，请手动填写邮费`);
       }
     }
+
+    // v11.0：邮费临时修改（结果区就地点击编辑）——覆盖当前档位显示价并联动成本/报价
+    if (shippingPrice != null) {
+      const shipOv = shippingPriceCache[region.id + "_" + tier];
+      if (typeof shipOv === "number" && Number.isFinite(shipOv) && shipOv >= 0) {
+        shippingPrice = shipOv;
+        shippingPriceOverridden = true;
+      }
+    }
   }
 
   // 成本合计：直接系数模式 = 纸张 + 工艺；标准模式 = 纸张(已含工艺) + 吊绳 + 邮费
@@ -730,7 +748,7 @@ function calculate(inputs) {
     // v7.0：批量直接报价纸张不参与系数计算，价格直接累加
     pricesByLevel = DIRECT_COEFF_LEVELS.map((level, li) => {
       const paperDetails = sheetDetails.map(sd => {
-        const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === sd.paperId);
+        const paper = paperById.get(sd.paperId);
         if (sd.isBatchDirect) {
           // v7.0：批量直接报价纸张 → 不乘系数，不参与系数计算，直接显示固定价格
           // contributedPrice 置 0：价格由 batchDirectTotal 统一累加，避免重复计数
@@ -743,7 +761,7 @@ function calculate(inputs) {
             hasDirectCoeff: false,
             isBatchDirect: true,
             batchDirectPrice: sd.batchDirectPrice,
-            discount: paper && paper.discount != null ? paper.discount : 1,
+            discount: getEffectiveDiscount(paper),
             contributedPrice: sd.unitPrice != null ? 0 : null
           };
         }
@@ -776,7 +794,7 @@ function calculate(inputs) {
           hasDirectCoeff,
           isBatchDirect: false,
           batchDirectPrice: null,
-          discount: paper && paper.discount != null ? paper.discount : 1,
+          discount: getEffectiveDiscount(paper),
           // v7.2：该纸张自己的工艺费用（用于明细卡片显示）
           craftTotal: craftOfSheet,
           contributedPrice
@@ -816,9 +834,11 @@ function calculate(inputs) {
     ropePrice,
     ropeBase,
     ropeMult,
+    ropePriceOverridden,
     shippingPrice,
     shippingMode,
     shippingWeightUsed,
+    shippingPriceOverridden,
     cost,
     costIncomplete,
     hasMissingTier,
@@ -859,6 +879,9 @@ const els = {
   resShippingPrice: document.getElementById("resShippingPrice"),
   resCost: document.getElementById("resCost"),
   resWarnings: document.getElementById("resWarnings"),
+  // v11.0：吊绳/邮费临时修改重置按钮
+  resultResetRow: document.getElementById("resultResetRow"),
+  resetRopeShipBtn: document.getElementById("resetRopeShipBtn"),
   // 临时毛利系数 & 邮费快速修改
   customCoeffBar: document.getElementById("customCoeffBar"),
   customCoeffInput: document.getElementById("customCoeffInput"),
@@ -867,13 +890,7 @@ const els = {
   tempCoeffBar: document.getElementById("tempCoeffBar"),
   tempCoeffInputs: document.getElementById("tempCoeffInputs"),
   tempCoeffResults: document.getElementById("tempCoeffResults"),
-  shippingOverrideBar: document.getElementById("shippingOverrideBar"),
-  shippingOverrideInput: document.getElementById("shippingOverrideInput"),
-  shippingOverrideClear: document.getElementById("shippingOverrideClear"),
-  shippingOverrideLabel: document.getElementById("shippingOverrideLabel"),
-  shippingOverrideCost: document.getElementById("shippingOverrideCost"),
-  shippingOverrideCostValue: document.getElementById("shippingOverrideCostValue"),
-  shippingOverrideCards: document.getElementById("shippingOverrideCards"),
+  // v11.0：邮费快速修改独立输入栏已移除（并入结果区邮费行就地编辑），原 shippingOverride* 引用删除
   searchInput: document.getElementById("searchInput"),
   priceTable: document.getElementById("priceTable"),
   craftTable: document.getElementById("craftTable"),
@@ -893,6 +910,9 @@ const els = {
   paperSelector: document.getElementById("paperSelector"),
   priceListSelector: document.getElementById("priceListSelector"),
   quickPriceListSelector: document.getElementById("quickPriceListSelector"),
+  // v10.8.0：报价表备注框体
+  priceListNote: document.getElementById("priceListNote"),
+  priceListNoteBody: document.getElementById("priceListNoteBody"),
   defaultQuoteToggle: document.getElementById("defaultQuoteToggle"),
   defaultQuoteToggleState: document.getElementById("defaultQuoteToggleState"),
   deletePriceListBtn: document.getElementById("deletePriceListBtn"),
@@ -910,11 +930,31 @@ const els = {
   uiLayoutMode: document.getElementById("uiLayoutMode"),
   hidePaperIndex: document.getElementById("hidePaperIndex"),
   paperSelectMode: document.getElementById("paperSelectMode"),
+  // v12.9：规格匹配方式 + 匹配规则编辑器
+  specMatchMode: document.getElementById("specMatchMode"),
+  ruleSetSelect: document.getElementById("ruleSetSelect"),
+  rulesTbody: document.getElementById("rulesTbody"),
+  rulesAddBtn: document.getElementById("rulesAddBtn"),
+  rulesResetBtn: document.getElementById("rulesResetBtn"),
+  rulesStatus: document.getElementById("rulesStatus"),
   ropeFold: document.getElementById("ropeFold"),
   ropeFoldHead: document.getElementById("ropeFoldHead"),
   ropeFoldSummary: document.getElementById("ropeFoldSummary"),
+  // v11.2：快速切换档位折叠面板
+  tierQuickHead: document.getElementById("tierQuickHead"),
+  // v11.4：报价表组查询分页 + 个性化主题色
+  tableViewTabs: document.getElementById("tableViewTabs"),
+  themeColorGroup: document.getElementById("themeColorGroup"),
+  // v11.5（G2）：表格密度
+  densityGroup: document.getElementById("densityGroup"),
+  // v11.2：个人主页功能入口（移动端顶部菜单 3 项时由此进入数据管理/报价设置）
+  gotoDataMgrBtn: document.getElementById("gotoDataMgrBtn"),
+  gotoSettingsBtn: document.getElementById("gotoSettingsBtn"),
   personalizeBtn: document.getElementById("personalizeBtn"),
-  personalizeModal: document.getElementById("personalizeModal"),
+  // v10.7.1 修复：HTML 元素 id 为 personalizePanel（v10.2 改内联面板时更名），
+  // 原代码读 personalizeModal → 恒为 null，导致点击「Aa 个性化」时
+  // if (els.personalizeModal) 判空跳过 toggle，面板永远打不开（表现为"卡死"）。
+  personalizePanel: document.getElementById("personalizePanel"),
   personalizeClose: document.getElementById("personalizeClose"),
   fontScaleGroup: document.getElementById("fontScaleGroup"),
   fontScaleCurrent: document.getElementById("fontScaleCurrent"),
@@ -972,6 +1012,11 @@ const els = {
   onlineGroupsWrap: document.getElementById("onlineGroupsWrap"),
   onlineAddGroupBtn: document.getElementById("onlineAddGroupBtn"),
   onlineTplPriceList: document.getElementById("onlineTplPriceList"),
+  // v12.7：在线制作纸张报价表（在线模板）
+  onlinePaperSelect: document.getElementById("onlinePaperSelect"),
+  onlinePaperFields: document.getElementById("onlinePaperFields"),
+  onlineSpecWrap: document.getElementById("onlineSpecWrap"),
+  onlineCraftWrap: document.getElementById("onlineCraftWrap"),
   onlineExportTplBtn: document.getElementById("onlineExportTplBtn"),
   onlineImportTplBtn: document.getElementById("onlineImportTplBtn"),
   onlineImportTplFile: document.getElementById("onlineImportTplFile"),
@@ -979,6 +1024,11 @@ const els = {
   historyTable: document.getElementById("historyTable"),
   historyEmpty: document.getElementById("historyEmpty"),
   clearHistoryBtn: document.getElementById("clearHistoryBtn"),
+  // v11.1：报价历史列表浮窗（计算器「查看报价记录」入口，与数据管理-报价历史共用渲染）
+  historyListDialog: document.getElementById("historyListDialog"),
+  dialogHistoryTable: document.getElementById("dialogHistoryTable"),
+  dialogHistoryEmpty: document.getElementById("dialogHistoryEmpty"),
+  dialogClearHistoryBtn: document.getElementById("dialogClearHistoryBtn"),
   quoteCustomerName: document.getElementById("quoteCustomerName"),
   quoteOrderNote: document.getElementById("quoteOrderNote"),
   saveQuoteBtn: document.getElementById("saveQuoteBtn"),
@@ -1018,15 +1068,33 @@ let defaultQuoteVisible = loadFromStorage("defaultQuoteVisible", true) !== false
 // v8.0：邮费输入缓存（会话级，不持久化，刷新后重新询问）
 let shippingWeightCache = {};   // regionId -> 吊牌重量(kg)
 let manualShippingCache = {};   // regionId_tier -> 手动邮费金额(元)
+// v10.9.0：吊绳费用临时修改缓存（会话级，不持久化）—— key: `${ropeId}_${tier}` -> 金额(元)。
+// 仅影响显示与本次计算（成本合计/客户等级报价联动），不写入任何报价配置。
+let ropePriceCache = {};        // ropeId_tier -> 临时吊绳费用(元)
+// v11.0：邮费临时修改缓存（会话级）—— key: `${regionId}_${tier}` -> 金额(元)。
+// 原「邮费快速修改」独立输入栏改为结果区邮费行就地点击编辑，行为与吊绳就地修改一致。
+let shippingPriceCache = {};    // regionId_tier -> 临时邮费(元)
+// v12.3：纸张折扣临时修改缓存（会话级）—— paperId -> 折扣系数（如 0.91）。
+// 结果区「折后价合计」中的折扣数字可就地点击修改，仅影响本次计算与显示，不写入纸张配置。
+let discountCache = {};         // paperId -> 临时折扣
+// v12.3/v12.4：批量直接报价会话级开关 —— **默认关闭**（白名单：仅明确启用过的纸张走批量直接价）。
+// paperId -> true 表示该纸本次会话启用批量直接报价；未启用者一律按标准计算。
+let batchDirectOnCache = {};    // paperId -> true（启用批量直接报价）
+// v12.4：工艺费合计临时覆盖缓存（会话级）—— `${paperId}_${tier}` -> 覆盖后的工艺费合计(元)
+let craftPriceCache = {};
+
+/** v12.3：取纸张当前生效折扣（临时覆盖优先，其次配置折扣） */
+function getEffectiveDiscount(paper) {
+  if (!paper) return 1;
+  if (discountCache[paper.id] != null) return discountCache[paper.id];
+  return paper.discount != null ? paper.discount : 1;
+}
 
 function applyDefaultQuoteVisibility() {
   const showCards = shouldShowDefaultQuoteCards(calcMode, defaultQuoteVisible);
   if (els.defaultPriceLabel) els.defaultPriceLabel.classList.toggle("default-quote-hidden", !showCards);
   if (els.priceCards) els.priceCards.classList.toggle("default-quote-hidden", !showCards);
-  // 邮费快速修改的标签和客户等级卡片受默认报价开关隐藏（v8.3 原始设计）
-  if (els.shippingOverrideLabel) els.shippingOverrideLabel.classList.toggle("default-quote-hidden", !showCards);
-  if (els.shippingOverrideCards) els.shippingOverrideCards.classList.toggle("default-quote-hidden", !showCards);
-  // 注意：shippingOverrideCost（修改后成本红字）始终可见，不受默认报价开关控制（v8.8）
+  // v11.0：原「修改邮费后报价」标签/卡片已随独立面板移除；吊绳/邮费覆盖由结果区就地高亮表达
   if (els.defaultQuoteToggle) {
     els.defaultQuoteToggle.setAttribute("aria-checked", String(defaultQuoteVisible));
     els.defaultQuoteToggle.classList.toggle("is-off", !defaultQuoteVisible);
@@ -1048,10 +1116,37 @@ function toggleDefaultQuoteVisibility() {
 
 // -------------------- 初始化下拉选项 --------------------
 // 根据 APP_PROFILE.defaultRope 生成吊绳单选项 HTML（顶层作用域，供 initOptions 和 rebuildRopeUI 共用）
+// -------------------- v12.5：吊绳/邮费「指定报价表」可用性与优先排序 --------------------
+/**
+ * 按报价表取可用的吊绳条目：
+ * - targetPriceListId 为空 → 全局可用；指定了 → 仅目标报价表可见；
+ * - 指定到当前报价表的条目「优先」排最前（不自动改选中值）；
+ * - 兜底：过滤后为空则回退全部（绝不出现空列表）。
+ */
+function getAvailableRopes(priceListId) {
+  // v12.7：用户澄清——「指定报价表」当前仅作**占位字段**（模板可填、界面可见），
+  // 暂不生效：不过滤、不排序，一律返回全量（保留函数签名以兼容调用点）。
+  return ROPE_CONFIG.slice();
+}
+/** v12.5：按报价表取可用的邮费地区（规则同 getAvailableRopes） */
+function getAvailableRegions(priceListId) {
+  // v12.7：同 getAvailableRopes——指定报价表暂不生效，返回全量
+  return SHIPPING_CONFIG.slice();
+}
+/** v12.5：统一重建地区下拉（仅显示当前报价表可用地区；保留原选中值若仍可用） */
+function buildShippingOptions(keepValue) {
+  if (!els.region) return;
+  const regions = getAvailableRegions();
+  els.region.innerHTML = '<option value="">请选择地区</option>' +
+    regions.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("");
+  const keep = keepValue != null ? String(keepValue) : "";
+  els.region.value = (keep && regions.some(r => r.id === keep)) ? keep : (regions[0] ? regions[0].id : "");
+}
+
 function renderRopeRadios() {
   const fallback = "rope1"; // 默认「普通吊绳」
   const desired = APP_PROFILE.defaultRope || fallback;
-  const ropes = ROPE_CONFIG;
+  const ropes = getAvailableRopes();
   const hasDesired = ropes.some(r => r.id === desired);
   const checkedId = hasDesired ? desired : (ropes.find(r => r.id === fallback) ? fallback : (ropes[0] && ropes[0].id));
   return ropes.map(r => {
@@ -1070,24 +1165,36 @@ function initOptions() {
   // 批量档位：基于第一张纸的规格价格 keys（取并集）
   updateTierOptions(true);
 
-  // 吊绳（三列单选）
-  els.rope.innerHTML = renderRopeRadios();
+  // 吊绳（三列单选）——v10.8.0：改走 rebuildRopeUI，确保重渲染后 change 事件仍被绑定
+  rebuildRopeUI();
 
-  // 地区：默认选中第一项（广东省内），确保页面加载后即可计算
-  if (els.region) {
-    const shippingOptions = SHIPPING_CONFIG;
-    els.region.innerHTML = '<option value="">请选择地区</option>' +
-      shippingOptions.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("");
-    if (shippingOptions.length > 0) {
-      els.region.value = shippingOptions[0].id;
-    }
-  }
+  // 地区：仅显示当前报价表可用地区（指定报价表过滤+优先），默认选中第一项
+  buildShippingOptions();
 }
 
 /**
  * 更新批量档位下拉选项。
  * @param {boolean} isInit 是否为初始化，若是则默认选中第一项。
  */
+/** v12.8：该档位在当前纸张下是否「无批量定价」（规格全部无价；读取到空值 null/""/空白 同样算） */
+function isTierMissingPricing(tier) {
+  const tierNum = Number(tier);
+  if (!tierNum) return false;
+  const papers = getPapersByPriceList(CURRENT_PRICE_LIST_ID);
+  const paper = papers[currentPaperIndex];
+  if (!paper || !paper.specs.length) return false;
+  const hasAny = paper.specs.some(sp => {
+    const v = sp.prices[tierNum];
+    return !(v == null || v === "" || (typeof v === "string" && v.trim() === ""));
+  });
+  return !hasAny;
+}
+/** v12.8：该档位是否使用了「手动填写的邮费」（当前地区） */
+function isTierManualShipping(tier) {
+  const rid = els.region ? els.region.value : "";
+  return !!(rid && manualShippingCache[rid + "_" + Number(tier)] != null);
+}
+
 function updateTierOptions(isInit) {
   // 批量档位取当前报价表所有规格的价格档位并集，避免切换纸张时档位缺失
   const tierSet = new Set();
@@ -1099,8 +1206,12 @@ function updateTierOptions(isInit) {
   const tiers = Array.from(tierSet).sort((a, b) => a - b);
 
   const currentTier = els.tier.value;
+  // v12.8：无批量定价 / 手动邮费的档位在下拉中红字标记（option 支持 color 的浏览器生效）
   els.tier.innerHTML = '<option value="">请选择批量档位</option>' +
-    tiers.map(t => `<option value="${t}">${t} 张</option>`).join("");
+    tiers.map(t => {
+      const flag = isTierMissingPricing(t) || isTierManualShipping(t);
+      return `<option value="${t}"${flag ? ' class="tier-flag"' : ""}>${t} 张</option>`;
+    }).join("");
 
   if (isInit) {
     if (tiers.includes(1000)) {
@@ -1140,69 +1251,96 @@ function applyUiLayoutMode() {
   const vertical = mode === "vertical" || (mode === "auto" && detectMobilePhone());
   document.body.classList.toggle("ui-vertical", vertical);
   document.body.classList.toggle("ui-flat", !vertical);
+  // v11.2：数据管理/报价设置独立菜单——桌面（扁平化宽泛式）显示 5 项；
+  // 移动端（垂直纵深式）顶部菜单保持 3 项，两个入口改由个人主页「功能入口」卡提供；
+  // file:// 本地版（无账号体系）始终隐藏（v11.1 遗漏 web 端移除 hidden 的修复也在此收敛）
+  const isWeb = !!window.KOKA;
+  document.querySelectorAll(".nav-btn.web-only").forEach(btn => {
+    btn.hidden = !isWeb || vertical;
+  });
 }
 
 // -------------------- v10.1：个性化（字号缩放，所有用户可用，仅本机生效） --------------------
+// v10.7.1：改为「以 px 为核心」——面板显示真实字号(px)，并支持直接输入 px 手动设置。
 const FONT_SCALES = [0.85, 1, 1.15, 1.3];
+const FONT_BASE_PX = 16;   // 系统默认字号（100% 基准）
+const FONT_MIN_PX = 8;     // 可设最小字号
+const FONT_MAX_PX = 32;    // 可设最大字号
 function getFontScale() {
   try {
     const v = parseFloat(localStorage.getItem("uiFontScale"));
-    return FONT_SCALES.includes(v) ? v : 1;
+    return Number.isFinite(v) && v >= FONT_MIN_PX / FONT_BASE_PX && v <= FONT_MAX_PX / FONT_BASE_PX ? v : 1;
   } catch (e) { return 1; }
+}
+// 由 px 反推缩放倍数（按 16px 基准）
+function pxToScale(px) { return px / FONT_BASE_PX; }
+// 取得当前"实际渲染字号"：优先量 body 计算样式，失败则用 16 × 缩放
+function getCurrentFontPx() {
+  const v = getFontScale();
+  let base = FONT_BASE_PX;
+  try {
+    const bs = parseFloat(getComputedStyle(document.body).fontSize);
+    if (Number.isFinite(bs) && bs > 0) base = bs;
+  } catch (e) { /* 用默认 16 */ }
+  return base * v;
 }
 function applyFontScale() {
   const v = getFontScale();
   document.documentElement.style.zoom = v === 1 ? "" : String(v);
-  if (els.fontScaleCurrent) els.fontScaleCurrent.textContent = "当前：" + Math.round(v * 100) + "%";
-  if (els.fontScaleInput) els.fontScaleInput.value = String(Math.round(v * 100));
+  const curPx = FONT_BASE_PX * v;
+  const fmt = n => (Math.round(n * 10) / 10).toString();
+  // 当前字号（百分比 + px 双显示）
+  if (els.fontScaleCurrent) {
+    els.fontScaleCurrent.textContent = `当前字号：${fmt(curPx)}px（${Math.round(v * 100)}%）`;
+  }
+  // 输入框回填 px 值
+  if (els.fontScaleInput) els.fontScaleInput.value = fmt(curPx);
   if (els.fontScaleGroup) {
     els.fontScaleGroup.querySelectorAll("button[data-scale]").forEach(btn => {
       btn.classList.toggle("active", Math.abs(parseFloat(btn.dataset.scale) - v) < 0.001);
     });
   }
-  // v10.3：显示系统默认字号与实际渲染字号（默认 16px × 缩放倍数）
+  // 系统默认字号说明
   if (els.fontScaleDefaults) {
-    const base = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
-    const cur = base * v;
-    const fmt = n => (Math.round(n * 10) / 10).toString();
-    els.fontScaleDefaults.textContent = `系统默认字号：${fmt(base)}px（100%） ｜ 当前字号：${fmt(cur)}px`;
+    els.fontScaleDefaults.textContent = `系统默认字号：${fmt(FONT_BASE_PX)}px（100%） ｜ 当前字号：${fmt(curPx)}px`;
   }
 }
 function setFontScale(v) {
-  try { localStorage.setItem("uiFontScale", String(v)); } catch (e) { /* 静默 */ }
+  const clamped = Math.min(Math.max(v, FONT_MIN_PX / FONT_BASE_PX), FONT_MAX_PX / FONT_BASE_PX);
+  try { localStorage.setItem("uiFontScale", String(clamped)); } catch (e) { /* 静默 */ }
   applyFontScale();
 }
+// v10.7.1：手动输入「像素 px」直接设置字号
 function applyCustomFontScale() {
-  // v10.2：自定义输入字号（百分比，限制 50~200）
   if (!els.fontScaleInput) return;
-  const pct = Number(els.fontScaleInput.value);
-  if (!Number.isFinite(pct) || pct < 50 || pct > 200) {
-    showToast("请输入 50~200 之间的缩放百分比");
+  const px = Number(els.fontScaleInput.value);
+  if (!Number.isFinite(px) || px < FONT_MIN_PX || px > FONT_MAX_PX) {
+    showToast(`请输入 ${FONT_MIN_PX}~${FONT_MAX_PX} 之间的字号（px）`);
     return;
   }
-  setFontScale(Math.round(pct) / 100);
+  setFontScale(pxToScale(px));
 }
 function bindPersonalizeEvents() {
   // v10.2：内联面板（无遮罩），点击按钮开/关，点击面板外部关闭
   if (els.personalizeBtn) {
     els.personalizeBtn.addEventListener("click", e => {
       e.stopPropagation();
-      if (els.personalizeModal) {
-        const open = els.personalizeModal.classList.toggle("open");
+      if (els.personalizePanel) {
+        const open = els.personalizePanel.classList.toggle("open");
         if (open) applyFontScale();
       }
     });
   }
-  if (els.personalizeModal) {
-    els.personalizeModal.addEventListener("click", e => e.stopPropagation());
+  if (els.personalizePanel) {
+    els.personalizePanel.addEventListener("click", e => e.stopPropagation());
   }
   document.addEventListener("click", e => {
-    if (els.personalizeModal && els.personalizeModal.classList.contains("open")) {
-      els.personalizeModal.classList.remove("open");
+    if (els.personalizePanel && els.personalizePanel.classList.contains("open")) {
+      els.personalizePanel.classList.remove("open");
     }
   });
   if (els.personalizeClose) {
-    els.personalizeClose.addEventListener("click", () => { if (els.personalizeModal) els.personalizeModal.classList.remove("open"); });
+    els.personalizeClose.addEventListener("click", () => { if (els.personalizePanel) els.personalizePanel.classList.remove("open"); });
   }
   if (els.fontScaleGroup) {
     els.fontScaleGroup.querySelectorAll("button[data-scale]").forEach(btn => {
@@ -1280,7 +1418,10 @@ function renderSheets() {
 
     // v6.14：无直接系数的纸张提示只在直接系数模式下显示（标准报价模式隐藏）
     // v7.0：有批量直接报价的纸张（如 40C棉麻布）不显示"请切换为标准报价"提示，改为显示批量直接报价提示
-    const hasBatchDirect = !!(currentPaper && currentPaper.batchDirect && currentPaper.batchDirect.maxArea > 0);
+    // v12.4：批量直接报价默认关闭——available=该纸支持；batchDirectOn=本次会话已启用
+    const batchDirectAvailable = !!(currentPaper && currentPaper.batchDirect && currentPaper.batchDirect.maxArea > 0);
+    const hasBatchDirect = batchDirectAvailable && !!batchDirectOnCache[currentPaper.id];
+    const batchDirectOff = batchDirectAvailable && !batchDirectOnCache[currentPaper.id];
     const noDirectCoeff = calcMode === "direct" && !paperHasDirectCoeff(currentPaper) && !hasBatchDirect;
 
     card.innerHTML = `
@@ -1317,10 +1458,16 @@ function renderSheets() {
         ${hasBatchDirect ? `
         <div class="sheet-batchdirect-hint">
           <span>批量直接报价：面积 ≤ ${currentPaper.batchDirect.maxArea} mm²（出血后）时按固定批量价报价，工艺费用直接叠加</span>
+          <button type="button" class="bd-toggle-btn" data-bd-toggle="${escapeHtml(currentPaper.id)}" title="关闭后该纸张按标准计算（本次会话生效）">关闭批量直接报价</button>
+        </div>` : ""}
+        ${batchDirectOff ? `
+        <div class="sheet-batchdirect-hint is-off">
+          <span>该纸张支持批量直接报价（当前已关闭，按标准计算）</span>
+          <button type="button" class="bd-toggle-btn is-on" data-bd-toggle="${escapeHtml(currentPaper.id)}" title="启用后面积在范围内按固定批量价报价">启用批量直接报价</button>
         </div>` : ""}
       </div>
       <div class="form-group" style="margin-bottom: 0;">
-        <label class="field-label">吊牌展开尺寸 <span class="hint">${currentPaper && currentPaper.hasBleed === false ? "不出血，不加 3mm" : "自动加 3mm 出血"}</span></label>
+        <label class="field-label">吊牌展开尺寸 <span class="hint">自动加 3mm 出血</span>${getEffectiveDiscount(currentPaper) !== 1 ? '<span class="discount-tag" title="该纸张有折扣系数，折后价合计处可点击修改">折扣价</span>' : ''}</label>
         <div class="sheet-size-row">
           <div class="form-group">
             <label class="unit">宽 (mm)</label>
@@ -1584,9 +1731,10 @@ function onCodeSwitch(sheetIdx, dir) {
     const w = parseFloat(state.width);
     const l = parseFloat(state.length);
     if (w && l) {
-      const hasBleed = paper.hasBleed !== false;
-      const area = calcBleedArea(l, w, hasBleed);
-      const spec = matchSpec(paper, area, hasBleed);
+      // v10.8.0：与 calculate 保持一致——不出血的报价表按实际长宽算面积
+      const bleeds = currentPriceListBleeds();
+      const area = bleeds ? calcBleedArea(l, w) : l * w;
+      const spec = matchSpec(paper, area, !bleeds);
       currentCode = spec.code;
     }
   }
@@ -1729,8 +1877,8 @@ function onCalculate() {
         return '¥ ' + formatMoney(bp) + ' × ' + coeff + ' = <span style="color:var(--brand);font-weight:600;">¥ ' + formatMoney(p) + '</span>';
       }
       // v7.0：批量直接报价纸张不显示折扣计算过程（价格固定，不打折）
-      if (showDiscountCalc && details[0].discount && details[0].discount !== 1 && !details[0].isBatchDirect) {
-        return '¥ ' + formatPriceRaw(details[0].baseOriginalUnitPrice) + ' × ' + details[0].discount + ' = <span style="color:var(--brand);font-weight:600;">¥ ' + formatMoney(p) + '</span>';
+      if (showDiscountCalc && !details[0].isBatchDirect && (details[0].discount !== 1 || details[0].discountEditable)) {
+        return '¥ ' + formatPriceRaw(details[0].baseOriginalUnitPrice) + ' × ' + renderDiscountEditSpan(details[0]) + ' = <span style="color:var(--brand);font-weight:600;">¥ ' + formatMoney(p) + '</span>';
       }
       return "¥ " + formatMoney(p);
     }
@@ -1743,8 +1891,8 @@ function onCalculate() {
         return '¥ ' + formatMoney(bp) + ' × ' + s.areaCoefficient;
       }
       // v6.14：有折扣的纸张显示计算过程（原价 × 折扣）；v7.0：批量直接报价纸张不显示折扣过程
-      if (showDiscountCalc && s.discount && s.discount !== 1 && !s.isBatchDirect) {
-        return '¥ ' + formatPriceRaw(s.baseOriginalUnitPrice) + ' × ' + s.discount;
+      if (showDiscountCalc && !s.isBatchDirect && (s.discount !== 1 || s.discountEditable)) {
+        return '¥ ' + formatPriceRaw(s.baseOriginalUnitPrice) + ' × ' + renderDiscountEditSpan(s);
       }
       return "¥ " + formatMoney(p);
     });
@@ -1754,13 +1902,41 @@ function onCalculate() {
       : '<span class="price-missing">部分缺价</span>';
     return parts.join(' + ') + ' = ' + totalStr;
   }
+  // v12.4：工艺费合计就地编辑（多纸时逐纸片段，与折后价合计同风格）
+  function renderCraftTotalEditable(details) {
+    const parts = details
+      .filter(s => !s.isBatchDirect && (s.craftTotal || 0) > 0)
+      .map(s => '¥ ' + renderCraftEditSpan(s));
+    const batchPart = (result.batchDirectCraftTotal || 0) > 0 ? '¥ ' + formatMoney(result.batchDirectCraftTotal) : "";
+    const all = parts.concat(batchPart ? [batchPart] : []);
+    return all.length ? all.join(' + ') : "¥ " + formatMoney(0);
+  }
+
+  /** v12.4：工艺费数字就地编辑 span（key: paperId_tier） */
+  function renderCraftEditSpan(detail) {
+    const pid = detail.paperId || "";
+    if (!pid) return formatMoney(detail.craftTotal || 0);
+    const key = pid + "_" + tier;
+    const overridden = craftPriceCache[key] != null;
+    return `<span class="discount-edit craft-edit${overridden ? " discount-overridden" : ""}" data-craft-edit="1" data-paper-id="${escapeHtml(pid)}" title="点击修改该纸张工艺费合计（临时，仅本机本次计算）">${formatMoney(detail.craftTotal || 0)}</span>`;
+  }
+
+  // v12.3：折扣数字就地编辑 span（会话级临时覆盖，参照邮费/吊绳就地修改模式）
+  function renderDiscountEditSpan(detail) {
+    const pid = detail.paperId || "";
+    if (!pid) return String(detail.discount);
+    const overridden = discountCache[pid] != null;
+    return `<span class="discount-edit${overridden ? " discount-overridden" : ""}" data-discount-edit="1" data-paper-id="${escapeHtml(pid)}" title="点击修改折扣（临时，仅本机本次计算；持久修改请到报价表组查询）">${detail.discount}</span>`;
+  }
+
   els.resPaperOriginalPrice.innerHTML = renderPaperTotal(s => s.originalUnitPrice, s => s.baseOriginalUnitPrice);
   els.resPaperPrice.innerHTML = renderPaperTotal(s => s.unitPrice, s => s.baseUnitPrice, true);
   // v7.0：工艺费用合计 = 常规工艺费 + 批量直接报价纸张的工艺费（直接叠加）
   // v10.2：标准模式下工艺费已并入纸张折后价计算（不再单独参与合计），此行仅作展示提示
   const craftDisplayTotal = (result.craftTotal || 0) + (result.batchDirectCraftTotal || 0);
   if (calcMode === "standard" && (result.craftTotal || 0) > 0) {
-    els.resCraftPrice.innerHTML = "¥ " + formatMoney(result.craftTotal) + ' <span class="craft-included-note">（已含于纸张折后价）</span>';
+    // v12.4：工艺费合计就地编辑（多纸时逐纸可编辑片段，单纸直接可编辑）
+    els.resCraftPrice.innerHTML = renderCraftTotalEditable(result.sheetDetails) + ' <span class="craft-included-note">（已含于纸张折后价）</span>';
   } else {
     els.resCraftPrice.innerHTML = craftDisplayTotal ? "¥ " + formatMoney(craftDisplayTotal) : '<span class="price-missing">无该批量定价</span>';
   }
@@ -1781,8 +1957,9 @@ function onCalculate() {
     const selectedRope = ROPE_CONFIG.find(item => item.id === ropeId);
     const ropeName = selectedRope ? selectedRope.name : "未选择吊绳";
     // v9.9：倍数制展示——档位>1000 时显示计算过程 ¥基准 × 倍数 = ¥结果，否则沿用原格式
+    // v10.9.0：金额可就地点击修改（临时覆盖，联动成本/报价）；被覆盖时红字高亮 + hover 提示
     const ropePrice = result.ropePrice != null
-      ? `<span class="rope-result-price">¥ ${formatMoney(result.ropePrice)}</span>`
+      ? `<span class="rope-result-price${result.ropePriceOverridden ? " rope-price-overridden" : ""}" data-rope-edit="1" title="点击修改吊绳费用（临时生效；清空确认可恢复默认）">¥ ${formatMoney(result.ropePrice)}</span>`
       : '<span class="price-missing">无该批量定价</span>';
     const ropeFormula = (result.ropeBase != null && result.tier > 1000)
       ? `<span class="rope-result-formula">（¥ ${formatMoney(result.ropeBase)}/千张 × ${formatPriceRaw(result.ropeMult)} = </span>`
@@ -1796,15 +1973,19 @@ function onCalculate() {
       </span>
     `;
     // v8.0：邮费按三种情况展示明细
+    // v11.0：金额可就地点击修改（临时覆盖，联动成本/报价）；被覆盖时红字高亮。
+    // 原「邮费快速修改」独立输入栏已并入此处（title 沿用吊绳就地编辑交互）。
     if (result.shippingPrice != null) {
+      const ovCls = result.shippingPriceOverridden ? " ship-price-overridden" : "";
+      const shipEditable = inner => `<span class="ship-result-price${ovCls}" data-ship-edit="1" title="点击修改邮费（临时生效；清空确认可恢复默认）">${inner}</span>`;
       if (result.shippingMode === "weight") {
         const shipRegion = SHIPPING_CONFIG.find(s => s.id === regionId);
         const coeff = shipRegion ? shipRegion.overTierCoeff : "";
-        els.resShippingPrice.innerHTML = `重量 ${result.shippingWeightUsed}kg × ${coeff} = <span style="color:var(--brand);font-weight:600;">¥ ${formatMoney(result.shippingPrice)}</span>`;
+        els.resShippingPrice.innerHTML = `重量 ${result.shippingWeightUsed}kg × ${coeff} = ${shipEditable(`<span style="color:var(--brand);font-weight:600;">¥ ${formatMoney(result.shippingPrice)}</span>`)}`;
       } else if (result.shippingMode === "manual") {
-        els.resShippingPrice.innerHTML = `<span style="color:var(--brand);font-weight:600;">¥ ${formatMoney(result.shippingPrice)}</span>（手动输入）`;
+        els.resShippingPrice.innerHTML = `${shipEditable(`<span style="color:var(--brand);font-weight:600;">¥ ${formatMoney(result.shippingPrice)}</span>`)}（手动输入）`;
       } else {
-        els.resShippingPrice.innerHTML = "¥ " + formatMoney(result.shippingPrice);
+        els.resShippingPrice.innerHTML = shipEditable("¥ " + formatMoney(result.shippingPrice));
       }
     } else {
       els.resShippingPrice.innerHTML = '<span class="price-missing">待输入</span>';
@@ -1813,11 +1994,20 @@ function onCalculate() {
   els.resCost.innerHTML = result.costIncomplete
     ? '<span class="price-missing">部分缺价</span>'
     : "¥ " + formatMoney(result.cost);
-  // v8.9：吊牌成本合计 = 成本合计 - 邮费（标准模式），即吊牌本身成本（不含邮费运输）
+  // v8.9：吊牌成本合计 = 吊牌本身成本；v12.6：改为扣除邮费与吊绳 ——
+  // 标准模式下工艺费已并入纸张折后价（paperTotal），故本值恒等于「纸张折后价合计（已含工艺费）」。
   if (els.resTagCost) {
     els.resTagCost.innerHTML = result.costIncomplete
       ? '<span class="price-missing">部分缺价</span>'
-      : "¥ " + formatMoney(result.cost - (result.shippingPrice || 0));
+      : "¥ " + formatMoney(result.cost - (result.shippingPrice || 0) - (result.ropePrice || 0));
+  }
+
+  // v11.0：临时修改重置按钮——仅存在覆盖时显示；v12.4：纳入折扣/工艺费/批量直接开关
+  if (els.resultResetRow) {
+    const hasOv = !!(result.ropePriceOverridden || result.shippingPriceOverridden
+      || Object.keys(discountCache).length || Object.keys(craftPriceCache).length
+      || Object.keys(batchDirectOnCache).length);
+    els.resultResetRow.style.display = hasOv ? "flex" : "none";
   }
 
   // 渲染档位缺失警告
@@ -1915,9 +2105,19 @@ function onCalculate() {
       }
     }
     const allTiers = Array.from(tierSet).sort((a, b) => a - b);
-    els.tierQuickBtns.innerHTML = allTiers.map(t =>
-      `<button class="tier-quick-btn${t === result.tier ? " active" : ""}" data-tier="${t}">${t}</button>`
-    ).join("");
+    // v12.6/v12.8：手动邮费与「无批量定价」档位均红字高亮（含读取到空值的情况）
+    els.tierQuickBtns.innerHTML = allTiers.map(t => {
+      const isManual = isTierManualShipping(t);
+      const isMissing = isTierMissingPricing(t);
+      const cls = `${t === result.tier ? " active" : ""}${isManual ? " manual-shipping" : ""}${isMissing ? " missing-pricing" : ""}`;
+      const tip = isMissing ? "该档位无批量定价（缺价）" : (isManual ? "该地区在此档位的邮费为手动输入值" : "");
+      return `<button class="tier-quick-btn${cls}" data-tier="${t}"${tip ? ` title="${tip}"` : ""}>${t}</button>`;
+    }).join("");
+    // v12.8：档位标记变化时同步刷新下拉（避免每次计算都重建造成闪烁）
+    try {
+      const sig = allTiers.map(t => (isTierManualShipping(t) ? "m" : "") + (isTierMissingPricing(t) ? "x" : "")).join("");
+      if (sig !== _lastTierFlagSig) { _lastTierFlagSig = sig; updateTierOptions(false); }
+    } catch (e) { /* 忽略 */ }
     els.tierQuickBtns.querySelectorAll(".tier-quick-btn").forEach(btn => {
       btn.addEventListener("click", function() {
         els.tier.value = this.dataset.tier;
@@ -1946,24 +2146,13 @@ function onCalculate() {
     if (els.tempCoeffResults) { els.tempCoeffResults.style.display = "none"; els.tempCoeffResults.innerHTML = ""; }
     if (els.customCoeffBar) {
       els.customCoeffBar.style.display = "flex";
-      const labelEl = els.customCoeffBar.querySelector(".custom-coeff-label");
-      if (labelEl) labelEl.textContent = "临时毛利系数：";
+      // v11.0：不再重写 label.textContent——提示文字已嵌套在 label 内（同行显示），
+      // 重写 textContent 会把嵌套的 hint span 一起抹掉
       renderCustomCoeffCard();
     }
   }
 
-  // 邮费快速修改栏：直接系数模式隐藏
-  if (els.shippingOverrideBar) {
-    if (calcMode === "direct") {
-      els.shippingOverrideBar.style.display = "none";
-      if (els.shippingOverrideInput) els.shippingOverrideInput.value = "";
-      if (els.shippingOverrideCards) { els.shippingOverrideCards.style.display = "none"; els.shippingOverrideCards.innerHTML = ""; }
-      if (els.shippingOverrideLabel) els.shippingOverrideLabel.style.display = "none";
-    } else {
-      els.shippingOverrideBar.style.display = "flex";
-      renderShippingOverrideCards();
-    }
-  }
+  // v11.0：原「邮费快速修改」输入栏显隐逻辑已随独立面板移除，就地编辑由渲染层直接处理
 
   // 默认报价标签：直接系数模式改为"直接系数报价"
   if (els.defaultPriceLabel) {
@@ -2062,20 +2251,248 @@ function confirmManualShipping() {
   }
 }
 
+// -------------------- v10.9.0：吊绳费用就地点击修改 --------------------
+// 结果区「吊绳费用」金额点击 → 内联 input → 确认后写入 ropePriceCache（会话级）并 onCalculate
+// 联动：成本合计 / 吊牌成本 / 各客户等级报价（calculate 中以覆盖值参与计算）；清空确认 = 恢复默认。
+
+/** 当前吊绳临时价缓存 key（与 calculate 中的取法保持一致） */
+function getRopePriceCacheKey() {
+  const checked = els.rope ? els.rope.querySelector('input[name="rope"]:checked') : null;
+  const tier = Number(els.tier ? els.tier.value : NaN);
+  if (!checked || !Number.isFinite(tier) || tier <= 0) return null;
+  return checked.value + "_" + tier;
+}
+
+/** 点击金额 → 原位展开 input 编辑 */
+function startRopePriceEdit(span) {
+  if (!_lastResult || _lastResult.ropePrice == null || span.dataset.editing === "1") return;
+  const key = getRopePriceCacheKey();
+  if (!key) return;
+  span.dataset.editing = "1";
+  const current = _lastResult.ropePrice;
+  span.innerHTML = `<input type="number" class="rope-price-input" step="0.01" min="0" placeholder="留空恢复默认" value="${current}">`;
+  const input = span.querySelector("input");
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (commit) => {
+    if (done) return;
+    done = true;
+    if (!commit) { onCalculate(); return; }   // Esc：原样重渲染还原
+    const raw = input.value.trim();
+    if (raw === "") {
+      delete ropePriceCache[key];             // 清空 = 恢复默认
+      onCalculate();
+      return;
+    }
+    const v = parseFloat(raw);
+    if (!isNaN(v) && v >= 0 && Number.isFinite(v)) {
+      ropePriceCache[key] = Math.round(v * 100) / 100;
+      showToast(raw === String(ropePriceCache[key])
+        ? `吊绳费用已临时修改为 ¥${formatMoney(ropePriceCache[key])}`
+        : `吊绳费用已临时修改为 ¥${formatMoney(ropePriceCache[key])}（已按 2 位小数取整）`);
+    }
+    onCalculate();                            // 无效输入也重渲染还原
+  };
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+  input.addEventListener("click", e => e.stopPropagation());   // 防止点击 input 再次触发编辑
+}
+
+// -------------------- v11.0：邮费就地点击修改 --------------------
+// 与吊绳就地修改同一交互：结果区「邮费」金额点击 → 内联 input → 确认后写入
+// shippingPriceCache（会话级）并 onCalculate 联动；清空确认 = 恢复默认。
+
+/** 当前邮费临时价缓存 key（与 calculate 中的取法保持一致） */
+function getShippingPriceCacheKey() {
+  const regionId = els.region ? els.region.value : "";
+  const tier = Number(els.tier ? els.tier.value : NaN);
+  if (!regionId || !Number.isFinite(tier) || tier <= 0) return null;
+  return regionId + "_" + tier;
+}
+
+/** 点击邮费金额 → 原位展开 input 编辑 */
+/**
+ * v12.4：工艺费合计就地编辑（结果区「工艺总费用合计」的数字）。
+ * 会话级临时覆盖（craftPriceCache[`${paperId}_${tier}`]），提交后 onCalculate 全量联动；
+ * 留空提交 = 恢复默认计算值；输入需 ≥ 0 的有限数字。
+ */
+function startCraftEdit(span) {
+  if (span.dataset.editing === "1") return;
+  const pid = span.dataset.paperId;
+  if (!pid) return;
+  const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === pid);
+  if (!paper) return;
+  // v12.4：本函数为全局作用域，档位需从 DOM 读取（tier 是 onCalculate 的局部变量）
+  const tier = parseInt(els.tier ? els.tier.value : "", 10);
+  if (!tier || tier <= 0) return;
+  span.dataset.editing = "1";
+  const key = pid + "_" + tier;
+  const current = craftPriceCache[key] != null ? craftPriceCache[key] : (span.dataset.raw || span.textContent).trim();
+  span.innerHTML = `<input type="number" class="rope-price-input craft-input" step="0.01" min="0" placeholder="留空恢复默认" value="${current}">`;
+  const input = span.querySelector("input");
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (commit) => {
+    if (done) return;
+    done = true;
+    if (!commit) { onCalculate(); return; }
+    const raw = input.value.trim();
+    if (raw === "") {
+      delete craftPriceCache[key];
+      showToast("工艺费已恢复默认计算值");
+      onCalculate();
+      return;
+    }
+    const v = parseFloat(raw);
+    if (!isNaN(v) && v >= 0 && Number.isFinite(v)) {
+      craftPriceCache[key] = Math.round(v * 100) / 100;
+      showToast(`「${paper.shortName || paper.name}」工艺费已临时修改为 ¥${formatMoney(craftPriceCache[key])}`);
+    } else {
+      showToast("工艺费无效（应为 ≥0 的数字），已忽略");
+    }
+    onCalculate();
+  };
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+}
+
+/**
+ * v12.3：纸张折扣就地编辑（结果区「折后价合计」中的折扣数字，如 0.91）。
+ * 会话级临时覆盖（discountCache[paperId]），提交后 onCalculate 全量联动（纸价/成本/报价/明细）；
+ * 留空提交 = 恢复配置折扣；输入范围 0.01~10（折扣系数语义，1 = 无折扣）。参照邮费/吊绳就地修改模式。
+ */
+function startDiscountEdit(span) {
+  if (span.dataset.editing === "1") return;
+  const pid = span.dataset.paperId;
+  if (!pid) return;
+  const paper = getPapersByPriceList(CURRENT_PRICE_LIST_ID).find(p => p.id === pid);
+  if (!paper) return;
+  span.dataset.editing = "1";
+  const current = getEffectiveDiscount(paper);
+  span.innerHTML = `<input type="number" class="rope-price-input discount-input" step="0.01" min="0.01" max="10" placeholder="留空恢复默认" value="${current}">`;
+  const input = span.querySelector("input");
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (commit) => {
+    if (done) return;
+    done = true;
+    if (!commit) { renderSheets(); onCalculate(); return; }
+    const raw = input.value.trim();
+    if (raw === "") {
+      delete discountCache[pid];
+      showToast("折扣已恢复为配置值");
+      renderSheets();
+      onCalculate();
+      return;
+    }
+    const v = parseFloat(raw);
+    if (!isNaN(v) && v > 0 && v <= 10 && Number.isFinite(v)) {
+      discountCache[pid] = Math.round(v * 1000) / 1000;
+      showToast(`「${paper.shortName || paper.name}」折扣已临时修改为 ${discountCache[pid]}`);
+    } else {
+      showToast("折扣系数无效（应为 0.01~10 之间），已忽略");
+    }
+    renderSheets();
+    onCalculate();
+  };
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+}
+
+/** v12.4：批量直接报价会话级开关（默认关闭；启用 → 走批量直接价，关闭 → 按标准计算） */
+function toggleBatchDirectForPaper(paperId) {
+  if (!paperId) return;
+  if (batchDirectOnCache[paperId]) {
+    delete batchDirectOnCache[paperId];
+    showToast("已关闭该纸张的批量直接报价（按标准计算）");
+  } else {
+    batchDirectOnCache[paperId] = true;
+    showToast("已启用该纸张的批量直接报价");
+  }
+  renderSheets();
+  onCalculate();
+}
+
+function startShippingPriceEdit(span) {
+  if (!_lastResult || _lastResult.shippingPrice == null || span.dataset.editing === "1") return;
+  const key = getShippingPriceCacheKey();
+  if (!key) return;
+  span.dataset.editing = "1";
+  const current = _lastResult.shippingPrice;
+  span.innerHTML = `<input type="number" class="rope-price-input ship-price-input" step="0.01" min="0" placeholder="留空恢复默认" value="${current}">`;
+  const input = span.querySelector("input");
+  input.focus();
+  input.select();
+  let done = false;
+  const finish = (commit) => {
+    if (done) return;
+    done = true;
+    if (!commit) { onCalculate(); return; }
+    const raw = input.value.trim();
+    if (raw === "") {
+      delete shippingPriceCache[key];
+      showToast("邮费已恢复默认计算值");
+      onCalculate();
+      return;
+    }
+    const v = parseFloat(raw);
+    if (!isNaN(v) && v >= 0 && Number.isFinite(v)) {
+      shippingPriceCache[key] = Math.round(v * 100) / 100;
+      showToast(`邮费已临时修改为 ¥${formatMoney(shippingPriceCache[key])}`);
+    }
+    onCalculate();
+  };
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); finish(true); }
+    else if (e.key === "Escape") { e.preventDefault(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+  input.addEventListener("click", e => e.stopPropagation());
+}
+
+/**
+ * v11.0：吊绳/邮费临时修改一键重置（结果框末端按钮）
+ */
+function resetRopeShipOverrides() {
+  // v12.4：统一重置全部临时修改（吊绳/邮费/折扣/工艺费/批量直接报价启用态）
+  const had = Object.keys(ropePriceCache).length + Object.keys(shippingPriceCache).length
+    + Object.keys(discountCache).length + Object.keys(craftPriceCache).length
+    + Object.keys(batchDirectOnCache).length;
+  ropePriceCache = {};
+  shippingPriceCache = {};
+  discountCache = {};
+  craftPriceCache = {};
+  batchDirectOnCache = {};
+  renderSheets();
+  onCalculate();
+  showToast(had ? "已重置全部临时修改（吊绳/邮费/折扣/工艺费/批量直接报价）" : "当前没有临时修改");
+}
+
 /**
  * 渲染临时毛利系数报价卡片
  */
 /**
- * v8.1：读取临时毛利系数与邮费快速修改的当前输入值。
+ * v8.1：读取临时毛利系数输入值。
+ * v11.0：邮费快速修改输入栏已移除（改为结果区就地编辑），本函数只保留毛利系数部分；
+ * computeStandardOverridePrice 的 hasShipOverride 分支成为不可达路径（保留不动以兼容历史数据结构）。
  */
 function getOverrideValues() {
   const coeffRaw = els.customCoeffInput ? els.customCoeffInput.value.trim() : "";
   const coeff = parseFloat(coeffRaw);
   const hasCoeff = !!coeffRaw && !isNaN(coeff) && coeff >= 1;
-  const shipRaw = els.shippingOverrideInput ? els.shippingOverrideInput.value.trim() : "";
-  const newShipping = parseFloat(shipRaw);
-  const hasShipOverride = !!shipRaw && !isNaN(newShipping) && newShipping >= 0;
-  return { coeff, newShipping, hasCoeff, hasShipOverride };
+  return { coeff, newShipping: null, hasCoeff, hasShipOverride: false };
 }
 
 function renderCustomCoeffCard() {
@@ -2213,7 +2630,7 @@ function renderTempCoeffResults() {
     // 基础价：乘面积系数后的原价
     const base = sd.originalUnitPrice != null ? sd.originalUnitPrice : sd.unitPrice;
     // 无直接系数的纸张：有折扣打折扣，无折扣则原价
-    const discount = hasDirect ? 1 : (paper ? (paper.discount || 1) : 1);
+    const discount = hasDirect ? 1 : (paper ? getEffectiveDiscount(paper) : 1);
     // v7.2：工艺价先加到纸张价上再乘系数：(纸张价 + 工艺价) × 系数
     const craftOfSheet = sd.sheetCraftTotal || 0;
     const price = (base * discount + craftOfSheet) * coeff;
@@ -2273,66 +2690,9 @@ function renderTempCoeffResults() {
   els.tempCoeffResults.style.display = "flex";
 }
 
-/**
- * 渲染邮费修改后的报价卡片（3 个默认等级，基于修改后的邮费重算）
- */
-function renderShippingOverrideCards() {
-  if (!els.shippingOverrideCards || !_lastResult) return;
-  const { newShipping, hasCoeff, hasShipOverride } = getOverrideValues();
-  // 没输入/无效值时整体隐藏
-  if (!hasShipOverride) {
-    els.shippingOverrideCards.style.display = "none";
-    els.shippingOverrideLabel.style.display = "none";
-    if (els.shippingOverrideCost) els.shippingOverrideCost.style.display = "none";
-    els.shippingOverrideCards.innerHTML = "";
-    return;
-  }
-  // v8.7：同时填了临时毛利系数时，邮费修改的 label 和 3 个客户等级卡片仍隐藏（合并结果在临时系数卡片），
-  // 但「修改后成本」红字保持显示，让用户知道新成本是多少（再被临时系数相乘得到最终价）
-  if (hasCoeff) {
-    const origShippingForCost = _lastResult.shippingPrice || 0;
-    const newCostForCoeff = _lastResult.cost - origShippingForCost + newShipping;
-    if (els.shippingOverrideCost) {
-      if (els.shippingOverrideCostValue) {
-        els.shippingOverrideCostValue.textContent = _lastResult.costIncomplete
-          ? "部分缺价"
-          : "¥ " + formatMoney(newCostForCoeff);
-      }
-      els.shippingOverrideCost.style.display = "flex";
-    }
-    els.shippingOverrideCards.style.display = "none";
-    els.shippingOverrideLabel.style.display = "none";
-    els.shippingOverrideCards.innerHTML = "";
-    return;
-  }
-  // 用修改后的邮费重算成本
-  const origShipping = _lastResult.shippingPrice || 0;
-  const newCost = _lastResult.cost - origShipping + newShipping;
-  const costIncomplete = _lastResult.costIncomplete;
-  // v8.3：显示修改后成本（高亮红字）
-  if (els.shippingOverrideCost) {
-    if (els.shippingOverrideCostValue) {
-      els.shippingOverrideCostValue.textContent = costIncomplete
-        ? "部分缺价"
-        : "¥ " + formatMoney(newCost);
-    }
-    els.shippingOverrideCost.style.display = "flex";
-  }
-  // 渲染 3 个默认等级报价卡片
-  els.shippingOverrideCards.innerHTML = _lastResult.pricesByLevel.map((item, idx) => {
-    const newPrice = newCost * item.coefficient;
-    return `
-      <div class="price-card${idx === 0 ? " highlight" : ""}">
-        <div class="level-name">${escapeHtml(item.levelName)}</div>
-        <div class="level-price">${costIncomplete
-          ? '<span class="price-missing">部分缺价</span>'
-          : formatMoney(newPrice) + '<span class="unit">元</span>'}</div>
-      </div>
-    `;
-  }).join("");
-  els.shippingOverrideLabel.style.display = "block";
-  els.shippingOverrideCards.style.display = "flex";
-}
+// v11.0：renderShippingOverrideCards 已删除——「邮费快速修改」独立输入栏与
+// 「修改邮费后报价」卡片并入结果区邮费行就地点击编辑（startShippingPriceEdit），
+// 覆盖价直接参与 calculate 联动，不再需要独立重算卡片。
 
 function clearResult() {
   if (els.resSheetTable) {
@@ -2374,13 +2734,11 @@ function clearResult() {
   _lastResult = null;
   if (els.saveQuoteBtn) els.saveQuoteBtn.disabled = true;
   if (els.customCoeffBar) els.customCoeffBar.style.display = "none";
+  // v11.0：吊绳/邮费临时修改重置按钮随结果清空隐藏
+  if (els.resultResetRow) els.resultResetRow.style.display = "none";
   if (els.customPriceCard) { els.customPriceCard.style.display = "none"; els.customPriceCard.innerHTML = ""; }
   if (els.tempCoeffBar) els.tempCoeffBar.style.display = "none";
   if (els.tempCoeffResults) { els.tempCoeffResults.style.display = "none"; els.tempCoeffResults.innerHTML = ""; }
-  if (els.shippingOverrideBar) els.shippingOverrideBar.style.display = "none";
-  if (els.shippingOverrideInput) els.shippingOverrideInput.value = "";
-  if (els.shippingOverrideLabel) els.shippingOverrideLabel.style.display = "none";
-  if (els.shippingOverrideCards) { els.shippingOverrideCards.style.display = "none"; els.shippingOverrideCards.innerHTML = ""; }
 }
 
 // -------------------- 报价表渲染 --------------------
@@ -2430,7 +2788,7 @@ function addTierEverywhere(t) {
 
 function removeTierEverywhere(t) {
   if (getTableTierUniverse().length <= 1) { showToast("至少需要保留一个档位"); return; }
-  if (!confirm(`确认删除档位「${t} 张」？\n该档位下的所有价格数据（纸张规格/附加工艺/吊绳/邮费）将被移除。\n\n注意：仅影响本机数据；云端默认数据需再点「上传为默认数据」（数据管理）确认上传。`)) return;
+  if (!confirm(`确认删除档位「${t} 张」？\n该档位下的所有价格数据（纸张规格/附加工艺/吊绳/邮费）将被移除。\n\n注意：仅影响本机数据；云端需再点「保存到云端」（数据管理）确认上传。`)) return;
   getPapersByPriceList(CURRENT_PRICE_LIST_ID).forEach(p => (p.specs || []).forEach(s => { delete s.prices[t]; }));
   const paperIds = new Set(getPapersByPriceList(CURRENT_PRICE_LIST_ID).map(p => p.id));
   Object.keys(CRAFT_CONFIG).forEach(pid => {
@@ -2487,7 +2845,7 @@ function removeSpecRow(code) {
   const spec = paper.specs.find(s => s.code === code);
   if (!spec) return;
   if (paper.specs.length <= 1) { showToast("至少需保留一行规格"); return; }
-  if (!confirm(`确认删除规格行「${code}」（最大面积 ${spec.maxArea} mm²）及其全部档位价格？\n\n仅影响本机数据；云端需再点「上传为默认数据」（数据管理）确认上传。`)) return;
+  if (!confirm(`确认删除规格行「${code}」（最大面积 ${spec.maxArea} mm²）及其全部档位价格？\n\n仅影响本机数据；云端需再点「保存到云端」（数据管理）确认上传。`)) return;
   paper.specs = paper.specs.filter(s => s.code !== code);
   saveToStorage("paperConfig", PAPER_CONFIG);
   renderPriceTable();
@@ -2513,7 +2871,7 @@ function startTierAddEdit(th) {
     if (!commit || !input.value.trim()) { renderPriceTable(); return; }
     if (!Number.isInteger(v) || v <= 0) { showToast("档位必须为正整数（张数）"); renderPriceTable(); return; }
     if (getTableTierUniverse().includes(v)) { showToast(`档位 ${v} 张已存在`); renderPriceTable(); return; }
-    if (!confirm(`确认新增档位列「${v} 张」？\n各价格表该列初始为空（点击单元格填写）。\n\n仅存本地，云端需再点「上传为默认数据」（数据管理）确认上传。`)) { renderPriceTable(); return; }
+    if (!confirm(`确认新增档位列「${v} 张」？\n各价格表该列初始为空（点击单元格填写）。\n\n仅存本地，云端需再点「保存到云端」（数据管理）确认上传。`)) { renderPriceTable(); return; }
     addTierEverywhere(v);
   };
   input.addEventListener("keydown", e => {
@@ -2616,10 +2974,7 @@ function renderPriceTable() {
   els.paperPageInfo.textContent = `第 ${currentPaperIndex + 1} / ${currentPapers.length} 张`;
   els.prevPaper.disabled = currentPaperIndex === 0;
   els.nextPaper.disabled = currentPaperIndex === currentPapers.length - 1;
-  // v10.9.0：报价表有备注时，在独立框体（表格下方单独起行）展示该报价表备注；无备注则展示通用说明
-  els.paperNotes.innerHTML = paper.notes && String(paper.notes).trim()
-    ? `报价表备注：${escapeHtml(String(paper.notes).trim())}`
-    : `备注：当前展示「${escapeHtml(paper.name)}」（${escapeHtml(getCurrentPriceList().name)}）。007 与 008 合并为 007/008；面积超过 10000 mm² 时按面积系数计算（面积÷10000，四舍五入保留两位小数）。`;
+  els.paperNotes.textContent = `备注：当前展示「${paper.name}」（${getCurrentPriceList().name}）。007 与 008 合并为 007/008；面积超过 10000 mm² 时按面积系数计算（面积÷10000，四舍五入保留两位小数）。`;
 
   // 同步下拉选择器
   if (els.paperSelector) {
@@ -2654,28 +3009,36 @@ function renderRopePriceTable() {
   if (!els.ropePriceTable) return;
   const tierKeys = ROPE_CONFIG.length ? Object.keys(ROPE_CONFIG[0].prices).map(Number).sort((a, b) => a - b) : [];
   const theadRow = els.ropePriceTable.querySelector("thead tr");
-  theadRow.innerHTML = '<th>吊绳名称</th>' + tierKeys.map(t => `<th>${t} 张</th>`).join("");
+  theadRow.innerHTML = '<th>吊绳名称</th>' + tierKeys.map(t => `<th>${t} 张</th>`).join("") + '<th>指定报价表</th>';
   const tbody = els.ropePriceTable.querySelector("tbody");
   tbody.innerHTML = ROPE_CONFIG.map(r => `
-    <tr>
+    <tr${r.targetPriceListId ? ' class="row-scoped"' : ''}>
       <td>${escapeHtml(r.name)}</td>
       ${tierKeys.map(t => {
         const v = r.prices[t];
         if (v == null) return `<td class="price-cell price-editable" data-type="rope" data-rope-id="${escapeHtml(r.id)}" data-tier="${t}" data-empty="1" title="点击填写价格"><span class="price-missing">无</span></td>`;
         return `<td class="price-cell price-editable" data-type="rope" data-rope-id="${escapeHtml(r.id)}" data-tier="${t}" title="点击编辑价格">¥ ${formatMoney(Number(v))}</td>`;
       }).join("")}
+      <td class="scope-cell">${renderScopeTag(r.targetPriceListId)}</td>
     </tr>
   `).join("");
+}
+
+/** v12.5：指定报价表状态标签（空 = 全局生效） */
+function renderScopeTag(targetPriceListId) {
+  if (!targetPriceListId) return '<span class="scope-tag global">全局</span>';
+  const pl = PRICE_LISTS.find(p => p.id === targetPriceListId);
+  return `<span class="scope-tag scoped">→ ${escapeHtml(pl ? pl.name : targetPriceListId)}</span>`;
 }
 
 function renderShippingPriceTable() {
   if (!els.shippingPriceTable) return;
   const tierKeys = SHIPPING_CONFIG.length ? Object.keys(SHIPPING_CONFIG[0].basePrices).map(Number).sort((a, b) => a - b) : [];
   const theadRow = els.shippingPriceTable.querySelector("thead tr");
-  theadRow.innerHTML = '<th>地区名称</th>' + tierKeys.map(t => `<th>${t} 张</th>`).join("") + '<th>超量系数</th>';
+  theadRow.innerHTML = '<th>地区名称</th>' + tierKeys.map(t => `<th>${t} 张</th>`).join("") + '<th>超量系数</th><th>指定报价表</th>';
   const tbody = els.shippingPriceTable.querySelector("tbody");
   tbody.innerHTML = SHIPPING_CONFIG.map(s => `
-    <tr>
+    <tr${s.targetPriceListId ? ' class="row-scoped"' : ''}>
       <td>${escapeHtml(s.name)}</td>
       ${tierKeys.map(t => {
         const v = s.basePrices[t];
@@ -2683,8 +3046,23 @@ function renderShippingPriceTable() {
         return `<td class="price-cell price-editable" data-type="shipping" data-region-id="${escapeHtml(s.id)}" data-tier="${t}" title="点击编辑价格">¥ ${formatMoney(Number(v))}</td>`;
       }).join("")}
       <td class="price-cell price-editable" data-type="shipping-coeff" data-region-id="${escapeHtml(s.id)}" title="点击编辑超量系数">${s.overTierCoeff}</td>
+      <td class="scope-cell">${renderScopeTag(s.targetPriceListId)}</td>
     </tr>
   `).join("");
+}
+
+/** v12.5：关闭全部指定（吊绳/邮费一键恢复全局） */
+function clearAllScopes(kind) {
+  const list = kind === "rope" ? ROPE_CONFIG : SHIPPING_CONFIG;
+  const count = list.filter(x => x.targetPriceListId).length;
+  if (!count) { showToast("当前没有指定报价表的条目"); return; }
+  if (!confirm(`确定关闭全部「指定报价表」吗？\n\n${count} 个条目将恢复为全局生效（吊绳与邮费的价格数值不变）。`)) return;
+  list.forEach(x => { x.targetPriceListId = ""; });
+  saveToStorage(kind === "rope" ? "ropeConfig" : "shippingConfig", list);
+  if (kind === "rope") { renderRopePriceTable(); rebuildRopeUI(); }
+  else { renderShippingPriceTable(); buildShippingOptions(); }
+  onCalculate();
+  showToast(`已关闭 ${count} 个条目的指定报价表（恢复全局生效）`);
 }
 
 // -------------------- v7.9 价格表就地编辑 --------------------
@@ -2720,6 +3098,7 @@ function startCellEdit(cell) {
   });
   cell.textContent = "";
   cell.appendChild(input);
+  cell.classList.add("cell-editing"); // v11.5（T-A4）：编辑态高亮描边
   _editingCell = { cell, input, type };
   input.focus();
   if (!isEmpty) input.select();
@@ -2815,6 +3194,7 @@ function applyPriceEdit(type, data, value) {
 
 function commitCellEdit() {
   if (!_editingCell) return;
+  try { _editingCell.cell.classList.remove("cell-editing"); } catch (e) { /* 忽略 */ } // v11.5（T-A4）
   const { input, type } = _editingCell;
   _editingCell = null;
   const valueStr = input.value.trim();
@@ -2828,7 +3208,7 @@ function commitCellEdit() {
     if (!Number.isInteger(to) || to <= 0) { showToast("档位必须为正整数（张数）"); renderPriceTable(); return; }
     if (to === from) { renderPriceTable(); return; }
     if (getTableTierUniverse().includes(to)) { showToast(`档位 ${to} 张已存在，无法修改`); renderPriceTable(); return; }
-    if (!confirm(`确认修改档位？\n\n原档位：${from} 张\n新档位：${to} 张\n（价格保留；作用于纸张规格/附加工艺/吊绳/邮费表）\n\n仅存本地，云端需再点「上传为默认数据」（数据管理）。`)) {
+    if (!confirm(`确认修改档位？\n\n原档位：${from} 张\n新档位：${to} 张\n（价格保留；作用于纸张规格/附加工艺/吊绳/邮费表）\n\n仅存本地，云端需再点「保存到云端」（数据管理）。`)) {
       renderPriceTable(); showToast("已取消修改"); return;
     }
     renameTierEverywhere(from, to);
@@ -2900,6 +3280,7 @@ function commitCellEdit() {
 
 function cancelCellEdit(silent) {
   if (!_editingCell) return;
+  try { _editingCell.cell.classList.remove("cell-editing"); } catch (e) { /* 忽略 */ } // v11.5（T-A4）
   _editingCell = null;
   renderPriceTable();
   if (!silent) showToast("已取消编辑");
@@ -2935,17 +3316,41 @@ function renderPriceListSelector() {
   };
   renderOne(els.priceListSelector);
   renderOne(els.quickPriceListSelector);
+  renderPriceListNote();
 }
 
-function onPriceListChange() {
-  // 兼容两个下拉框触发：以发起事件的元素取值
-  const active = document.activeElement;
+/**
+ * v10.8.0：渲染「报价表备注」框体。
+ * 当前报价表有备注 → 显示（独立成行的框体，位于切换器下方）；无备注 → 整块隐藏。
+ * 报价表切换（onPriceListChange → renderPriceListSelector）时自动刷新。
+ */
+function renderPriceListNote() {
+  if (!els.priceListNote || !els.priceListNoteBody) return;
+  const note = getPriceListNote(CURRENT_PRICE_LIST_ID).trim();
+  if (!note) {
+    els.priceListNote.hidden = true;
+    els.priceListNoteBody.textContent = "";
+    return;
+  }
+  els.priceListNoteBody.textContent = note;
+  els.priceListNote.hidden = false;
+}
+
+function onPriceListChange(event) {
+  // 兼容两个下拉框触发：v11.5 修复（N1）——原实现依赖 document.activeElement 判断来源
+  // （jsdom/键盘/程序化触发时 activeElement 不可靠），改为优先取事件 target。
   let newId = "";
-  if (active && (active === els.priceListSelector || active === els.quickPriceListSelector)) {
-    newId = active.value;
+  const fromSelector = event && event.target;
+  if (fromSelector && (fromSelector === els.priceListSelector || fromSelector === els.quickPriceListSelector)) {
+    newId = fromSelector.value;
   } else {
-    newId = (els.quickPriceListSelector && els.quickPriceListSelector.value) ||
-            (els.priceListSelector && els.priceListSelector.value);
+    const active = document.activeElement;
+    if (active && (active === els.priceListSelector || active === els.quickPriceListSelector)) {
+      newId = active.value;
+    } else {
+      newId = (els.quickPriceListSelector && els.quickPriceListSelector.value) ||
+              (els.priceListSelector && els.priceListSelector.value);
+    }
   }
   if (newId && newId !== CURRENT_PRICE_LIST_ID) {
     setCurrentPriceList(newId);
@@ -2955,6 +3360,8 @@ function onPriceListChange() {
     renderPriceTable();
     onCalculate();
     renderPriceListSelector(); // 同步两个下拉框选中态
+    // v12.7：指定报价表暂不生效 → 移除 v12.5 的切表可用性自动切换（避免误导性提示）
+    switchTableView("quote"); // v11.5（T-A1）：切表后自动回到「当前报价表」子视图，避免停留在吊绳/邮费视图看不到变化
     showToast(`已切换到「${getCurrentPriceList().name}」`);
   } else if (newId) {
     // 值未变化时也同步选中态（例如通过另一处已切换）
@@ -2963,6 +3370,11 @@ function onPriceListChange() {
 }
 
 function onDeletePriceList() {
+  // v10.8.1 安全修复：与就地编辑/在线修改区对齐——网页端仅超管可删报价表（本地 file:// 无 KOKA 不受限）
+  if (window.KOKA && KOKA.canEditQuote && !KOKA.canEditQuote()) {
+    if (KOKA.toast) KOKA.toast("报价数据为只读，仅超级管理员可删除报价表", true);
+    return;
+  }
   if (PRICE_LISTS.length <= 1) {
     showToast("至少保留一个报价表，无法删除");
     return;
@@ -3108,6 +3520,7 @@ function switchCalcMode(mode) {
 function resetToDefaults() {
   const confirmMsg = "将清空以下本地修改并恢复出厂默认：\n\n• 报价表组（恢复为默认 1楼/3楼 报价表）\n• 纸张配置（44 张）\n• 工艺配置（含 烫金/UV/鸡眼/凹凸 等）\n• 吊绳配置\n• 邮费配置\n• 客户等级\n\n报价历史与本地快照不会被删除。\n\n确定继续？";
   if (!confirm(confirmMsg)) return;
+  clearRopeShipPriceCaches(); // v11.3：重置后 rope/region id 回到默认，清理临时价缓存
 
   const keysToReset = ["paperConfig", "craftConfig", "ropeConfig", "shippingConfig", "customerLevels", "priceLists", "priceListGroups", "currentPriceListId"];
   keysToReset.forEach(k => {
@@ -3134,7 +3547,8 @@ function resetToDefaults() {
 
   rebuildPaperUI();
   renderLevelSettings();
-  renderRopeRadios();
+  // v10.8.0：原此处 renderRopeRadios(); 是空调用（返回值被丢弃，并未写入 DOM）。
+  // 吊绳区渲染统一交给 initOptions()（其内部走 rebuildRopeUI，含事件重绑）。
   initOptions();
   // 重新填充下拉框默认值
   updateDefaultPaperOptions && updateDefaultPaperOptions();
@@ -3152,6 +3566,9 @@ function resetToDefaults() {
 function resetAllLocalSettings() {
   const confirmMsg = "⚠️ 确定要恢复全局默认设置吗？\n\n将清除以下本地配置：\n• 报价表组（恢复为默认 1楼/3楼 报价表）\n• 纸张配置（44 张）\n• 工艺配置（含 烫金/UV/鸡眼/凹凸 等）\n• 吊绳配置\n• 邮费配置\n• 客户等级与毛利系数\n• 公司信息与个人偏好\n\n报价历史与本地快照不受影响。\n\n此操作不可撤销，恢复后页面将自动刷新。";
   if (!confirm(confirmMsg)) return;
+  // v11.5（P-A2）：二次输入确认——破坏性操作防误触重于二次 confirm
+  const answer = prompt('即将清除全部本地配置且不可撤销。\n输入「恢复」以确认执行（输入其他内容或留空 = 取消）：');
+  if (answer !== "恢复") { showToast("已取消：未输入「恢复」"); return; }
 
   // 清除所有本地配置 key（保留 history 和 snapshots）
   const keysToWipe = ["paperConfig", "craftConfig", "ropeConfig", "shippingConfig", "customerLevels", "appProfile", "priceLists", "priceListGroups", "currentPriceListId"];
@@ -3160,6 +3577,40 @@ function resetAllLocalSettings() {
   });
 
   showToast("已恢复全局默认设置，正在刷新…");
+  setTimeout(() => location.reload(), 600);
+}
+
+/**
+ * v12.1：彻底恢复出厂并清除缓存（新增功能，不覆盖上面的 resetAllLocalSettings）。
+ * 在「全局恢复」基础上额外清除：报价历史、本地快照、本机偏好（主题色/表格密度/字体）、
+ * 以及全部 tagPricing_ 前缀键与内存缓存。**登录状态（sessionStorage token）保留**。
+ * 双重确认：confirm + 手输「彻底恢复」。
+ */
+function resetEverything() {
+  const confirmMsg = "⚠️⚠️ 彻底恢复出厂（含记录与缓存）\n\n将清除：\n• 全部本地配置（纸张 / 工艺 / 吊绳 / 邮费 / 客户等级 / 公司信息 / 个人偏好）\n• 报价历史记录（全部）\n• 本地快照（全部）\n• 本机偏好（主题色 / 表格密度 / 字体大小）\n• 内存缓存（临时价 / 会话缓存）\n\n登录状态保留（不会退出账号）。\n\n此操作不可撤销，恢复后页面将自动刷新。";
+  if (!confirm(confirmMsg)) return;
+  const answer = prompt('此操作将清空全部数据且不可撤销。\n输入「彻底恢复」以确认执行（输入其他内容或留空 = 取消）：');
+  if (answer !== "彻底恢复") { showToast("已取消：未输入「彻底恢复」"); return; }
+
+  // 遍历清空：全部 tagPricing_ 前缀键 + 旧主题键（不遗漏任何数据键）
+  try {
+    const toRemove = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.indexOf("tagPricing_") === 0 || k === "themeColor")) toRemove.push(k);
+    }
+    toRemove.forEach(k => { try { localStorage.removeItem(k); } catch (e) { /* 忽略 */ } });
+  } catch (e) { /* 忽略 */ }
+
+  // 内存缓存主动清空（reload 后本会重置，此处保证提示期间行为一致）
+  try {
+    ropePriceCache = {};
+    shippingPriceCache = {};
+    shippingWeightCache = {};
+    manualShippingCache = {};
+  } catch (e) { /* 忽略 */ }
+
+  showToast("已彻底恢复出厂设置（含历史与快照），正在刷新…");
   setTimeout(() => location.reload(), 600);
 }
 
@@ -3179,6 +3630,8 @@ function loadProfileToUI() {
   if (els.hidePaperIndex) els.hidePaperIndex.value = APP_PROFILE.hidePaperIndex ? "hide" : "show";
   // v10.1：纸张材质选择模式回填
   if (els.paperSelectMode) els.paperSelectMode.value = APP_PROFILE.paperSelectMode === "dropdown" ? "dropdown" : "grid";
+  // v12.9：规格匹配方式回填（默认表格匹配）
+  if (els.specMatchMode) els.specMatchMode.value = getSpecMatchMode();
   updateDefaultPaperOptions();
   if (els.defaultPaper) els.defaultPaper.value = APP_PROFILE.defaultPaperId || "";
 }
@@ -3227,6 +3680,9 @@ function saveProfile() {
     hidePaperIndex: els.hidePaperIndex ? (els.hidePaperIndex.value !== "show") : APP_PROFILE.hidePaperIndex,
     // v10.1：纸张材质选择模式（grid/dropdown）
     paperSelectMode: els.paperSelectMode ? (els.paperSelectMode.value === "dropdown" ? "dropdown" : "grid") : prevPaperSelectMode,
+    // v12.9：规格匹配方式（table=表格匹配 默认 / rule=规则匹配）
+    specMatchMode: els.specMatchMode ? (els.specMatchMode.value === "rule" ? "rule" : "table")
+                                     : (APP_PROFILE.specMatchMode === "rule" ? "rule" : "table"),
     decimalPlaces: els.decimalPlaces ? parseDecimalPlaces(els.decimalPlaces.value) : parseDecimalPlaces(APP_PROFILE.decimalPlaces)
   };
   saveToStorage("appProfile", APP_PROFILE);
@@ -3242,6 +3698,16 @@ function saveProfile() {
   const newSelectMode = APP_PROFILE.paperSelectMode === "dropdown" ? "dropdown" : "grid";
   if (newSelectMode !== prevPaperSelectMode) renderSheets();
   showToast("设置已保存");
+  // v11.5（S-A2）：保存按钮反馈增强——短暂变为「已保存 ✓」
+  if (els.saveProfileBtn) {
+    const btn = els.saveProfileBtn;
+    if (!btn.dataset.feedback) {
+      btn.dataset.feedback = "1";
+      const orig = btn.textContent;
+      btn.textContent = "已保存 ✓";
+      setTimeout(() => { btn.textContent = orig; delete btn.dataset.feedback; }, 1500);
+    }
+  }
   onCalculate();
 }
 
@@ -3281,17 +3747,106 @@ function switchTab(tabName) {
   els.tabPanels.forEach(p => p.classList.toggle("active", p.id === "panel-" + tabName));
   if (tabName === "history") renderHistory();
   if (tabName === "online") renderOnlineManager(); // v10.7.0：切到在线修改时刷新（权限+数据均可能已变化）
+  if (tabName === "rules") renderSpecRules();      // v12.9：切到匹配规则时刷新
+}
+
+// -------------------- v12.9：规格匹配规则编辑器（数据管理 → 匹配规则） --------------------
+// 数据模型：SPEC_MATCH_RULES = { global: [{code,maxArea}], <织唛报价表id>: [...] }
+// 规则只决定「用哪个代码」，价格仍取表格中该代码的价格。
+const RULE_INPUT_STYLE = "width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;";
+
+function currentRuleSetKey() {
+  return (els.ruleSetSelect && els.ruleSetSelect.value === "maitou") ? getMaitouPriceListId() : "global";
+}
+
+/** 从 DOM 读取当前编辑中的规则行 */
+function readRuleRowsFromDom() {
+  const out = [];
+  if (!els.rulesTbody) return out;
+  els.rulesTbody.querySelectorAll("tr").forEach(tr => {
+    const c = tr.querySelector(".rule-code");
+    const m = tr.querySelector(".rule-maxarea");
+    if (c && m) out.push({ code: c.value, maxArea: Number(m.value) });
+  });
+  return out;
+}
+
+function updateRulesStatus() {
+  if (!els.rulesStatus) return;
+  const key = currentRuleSetKey();
+  const rows = (SPEC_MATCH_RULES && SPEC_MATCH_RULES[key]) || [];
+  const isRule = getSpecMatchMode() === "rule";
+  els.rulesStatus.textContent =
+    `共 ${rows.length} 条规则（按面积上限升序生效）｜规则集：${key === "global" ? "全局" : "织唛专用"}｜` +
+    `当前匹配方式：${isRule ? "规则匹配" : "表格匹配（本规则暂不生效）"}` +
+    (isRule ? "" : " —— 如需生效，请到「报价设置 → 默认选项 → 规格匹配方式」切换为「规则匹配」。");
+}
+
+function renderSpecRules() {
+  if (!els.rulesTbody) { updateRulesStatus(); return; }
+  const key = currentRuleSetKey();
+  const rows = (SPEC_MATCH_RULES && SPEC_MATCH_RULES[key]) || [];
+  els.rulesTbody.innerHTML = rows.length
+    ? rows.map((r, i) => `<tr>
+        <td><input type="text" class="rule-code" data-idx="${i}" value="${escapeHtml(r.code)}" placeholder="如 011" style="${RULE_INPUT_STYLE}"></td>
+        <td><input type="number" min="1" step="1" class="rule-maxarea" data-idx="${i}" value="${Number(r.maxArea)}" style="${RULE_INPUT_STYLE}"></td>
+        <td><button class="btn secondary sm rule-del" data-idx="${i}">删除</button></td>
+      </tr>`).join("")
+    : `<tr><td colspan="3" style="text-align:center;color:var(--text-secondary);padding:18px;">暂无规则，点下方「新增规则」</td></tr>`;
+  updateRulesStatus();
+}
+
+/** 保存当前规则集（空代码行不落盘）并重算 */
+function persistRulesFromDom() {
+  const key = currentRuleSetKey();
+  setSpecRules(key, readRuleRowsFromDom());
+  onCalculate();
+  updateRulesStatus();
+}
+
+function handleRulesClick(e) {
+  const btn = e.target && e.target.closest ? e.target.closest(".rule-del") : null;
+  if (!btn) return;
+  const rows = readRuleRowsFromDom();
+  rows.splice(Number(btn.dataset.idx), 1);
+  setSpecRules(currentRuleSetKey(), rows);
+  renderSpecRules();
+  onCalculate();
+}
+
+function handleRulesAdd() {
+  const key = currentRuleSetKey();
+  // 先规范化（清洗 + 按面积升序），避免 DOM 顺序与存储顺序不一致导致规则乱序
+  setSpecRules(key, readRuleRowsFromDom());
+  const rows = (SPEC_MATCH_RULES[key] || []).slice();
+  const last = rows.reduce((m, r) => Math.max(m, Number(r.maxArea) || 0), 0);
+  SPEC_MATCH_RULES[key] = rows.concat([{ code: "", maxArea: last + 1000 }]);
+  renderSpecRules();
+  const inputs = els.rulesTbody ? els.rulesTbody.querySelectorAll(".rule-code") : [];
+  if (inputs.length) inputs[inputs.length - 1].focus();
+}
+
+function handleRulesReset() {
+  const key = currentRuleSetKey();
+  const label = key === "global" ? "全局" : "织唛专用";
+  if (!confirm(`确定把「${label}」规则恢复为默认吗？`)) return;
+  setSpecRules(key, key === "global" ? DEFAULT_SPEC_MATCH_RULES_GLOBAL : DEFAULT_SPEC_MATCH_RULES_MAITOU);
+  renderSpecRules();
+  onCalculate();
+  showToast(`「${label}」规则已恢复默认`);
 }
 
 // -------------------- v10.7.0 在线修改（数据管理 · 报价历史与云同步之间） --------------------
 // （对齐 v9.8.0 体系，加回：报价表组/报价表在线增删改名 + 按模板原地覆盖数据 + 管理员权限门控）
 
 /**
- * 权限判定：http 部署时仅管理员可用；file:// 本地离线（无 KOKA）视为机主，放行。
+ * 权限判定：http 部署时仅管理员级别可用；file:// 本地离线（无 KOKA）视为机主，放行。
+ * v10.7.1：账号体系已同步为 v10.5 四级（superadmin/admin/sales/visitor），
+ * 故改用 KOKA.roleNum() >= 2 判定（admin=2、superadmin=3），不再硬编码 role === "admin"。
  */
 function isOnlineEditAdmin() {
   if (!window.KOKA) return true;
-  return !!(KOKA.user && KOKA.user.role === "admin");
+  return !!(window.KOKA && KOKA.roleNum && KOKA.roleNum() >= 2);
 }
 
 function setOnlineTplStatus(html, isError) {
@@ -3356,9 +3911,182 @@ function renderOnlineManager() {
     ).join("");
     if (!els.onlineTplPriceList.value && PRICE_LISTS.length) els.onlineTplPriceList.value = PRICE_LISTS[0].id;
   }
+
+  // v12.7：渲染在线纸张编辑器（在线制作纸张报价表）
+  renderOnlinePaperEditor();
 }
 
 /** 在线修改区：组卡片内按钮（事件委托，容器自身不随 innerHTML 重建而失效） */
+// ==================== v12.7：在线制作纸张报价表（在线模板，全字段在线编辑） ====================
+let onlinePaperId = "";
+// v12.8：档位标记签名（手动邮费/无定价）——变化时才重建档位下拉，避免闪烁
+let _lastTierFlagSig = "";
+
+/** 渲染在线纸张编辑器：属性表单 + 规格价格矩阵 + 工艺价格矩阵（单元格复用全局就地编辑链路） */
+function renderOnlinePaperEditor() {
+  if (!els.onlinePaperSelect || !els.onlinePaperFields) return;
+  const papers = getPapersByPriceList(CURRENT_PRICE_LIST_ID);
+  if (!papers.length) {
+    els.onlinePaperSelect.innerHTML = "";
+    els.onlinePaperFields.innerHTML = '<div class="empty-state">当前纸张报价表暂无纸张，点「＋ 新建纸张」创建</div>';
+    els.onlineSpecWrap.innerHTML = "";
+    els.onlineCraftWrap.innerHTML = "";
+    return;
+  }
+  if (!onlinePaperId || !papers.some(p => p.id === onlinePaperId)) onlinePaperId = papers[0].id;
+  currentPaperIndex = Math.max(0, papers.findIndex(p => p.id === onlinePaperId)); // 同步就地编辑的目标纸张
+  const paper = papers[currentPaperIndex];
+  els.onlinePaperSelect.innerHTML = papers.map(p =>
+    `<option value="${escapeHtml(p.id)}"${p.id === paper.id ? " selected" : ""}>${escapeHtml(p.shortName || p.name)}</option>`).join("");
+
+  const dc = paper.directCoeff || {};
+  const bd = paper.batchDirect || {};
+  const plOptions = PRICE_LISTS.map(pl =>
+    `<option value="${escapeHtml(pl.id)}"${pl.id === paper.priceListId ? " selected" : ""}>${escapeHtml(pl.name)}</option>`).join("");
+  els.onlinePaperFields.innerHTML = `
+    <div class="online-field-grid">
+      <label class="online-field"><span>全称</span><input data-of="name" value="${escapeHtml(paper.name || "")}"></label>
+      <label class="online-field"><span>简称</span><input data-of="shortName" value="${escapeHtml(paper.shortName || "")}"></label>
+      <label class="online-field"><span>折扣系数</span><input type="number" step="0.01" min="0.01" max="10" data-of="discount" value="${paper.discount != null ? paper.discount : 1}"></label>
+      <label class="online-field"><span>所属纸张报价表</span><select data-of="priceListId">${plOptions}</select></label>
+      <label class="online-field"><span>直接系数档位</span><input data-of="dcTiers" placeholder="如 1000,2000,5000" value="${escapeHtml((dc.tiers || []).join(","))}"></label>
+      <label class="online-field"><span>直接系数·最高倍数</span><input data-of="dcMax" placeholder="如 1.2,1.1,1.0" value="${escapeHtml((dc.max || []).join(","))}"></label>
+      <label class="online-field"><span>直接系数·最低倍数</span><input data-of="dcMin" placeholder="如 1.0,0.95,0.9" value="${escapeHtml((dc.min || []).join(","))}"></label>
+      <label class="online-field"><span>批量直接·最大面积</span><input type="number" min="0" data-of="bdMaxArea" value="${bd.maxArea != null ? bd.maxArea : ""}"></label>
+      <label class="online-field"><span>批量直接·档位价格</span><input data-of="bdPrices" placeholder="如 1000:2.5,2000:2" value="${escapeHtml(bd.prices ? Object.keys(bd.prices).sort((a, b) => a - b).map(k => k + ":" + bd.prices[k]).join(",") : "")}"></label>
+      <div class="online-field online-field-note"><span>出血设置</span><em>${currentPriceListBleeds() ? "当前纸张报价表：出血（自动加 3mm）" : "当前纸张报价表：不出血"}</em></div>
+    </div>`;
+
+  const tierKeys = getTableTierUniverse().map(String);
+  const specRows = paper.specs.map(sp => `
+    <tr>
+      <td class="spec-code-cell"><span class="spec-code-text price-editable" data-type="spec-code" data-code="${escapeHtml(sp.code)}" title="点击修改代码">${escapeHtml(sp.code)}</span></td>
+      <td class="price-cell price-editable" data-type="spec-maxarea" data-code="${escapeHtml(sp.code)}" title="点击编辑最大面积">${sp.maxArea}</td>
+      ${tierKeys.map(t => { const v = sp.prices[t];
+        return v == null
+          ? `<td class="price-cell price-editable" data-type="spec" data-code="${escapeHtml(sp.code)}" data-tier="${t}" data-empty="1" title="点击填写价格"><span class="price-missing">无</span></td>`
+          : `<td class="price-cell price-editable" data-type="spec" data-code="${escapeHtml(sp.code)}" data-tier="${t}" title="点击编辑价格">¥ ${formatMoney(Number(v))}</td>`; }).join("")}
+    </tr>`).join("");
+  els.onlineSpecWrap.innerHTML = `<h4 class="online-sub-title">规格价格矩阵 <span>（单元格点击即改；档位列可在「报价表组查询」页增减）</span></h4>
+    <table class="data-table"><thead><tr><th>代码</th><th>最大含出血面积</th>${tierKeys.map(t => `<th>${t} 张</th>`).join("")}</tr></thead><tbody>${specRows}</tbody></table>`;
+
+  const crafts = CRAFT_CONFIG[paper.id] || [];
+  const craftRows = crafts.map(c => `
+    <tr>
+      <td class="online-craft-name">${escapeHtml(c.name)}<button type="button" class="row-del" data-of-del-craft="${escapeHtml(c.id)}" title="删除该工艺">✕</button></td>
+      ${tierKeys.map(t => { const v = c.prices ? c.prices[t] : null;
+        return v == null
+          ? `<td class="price-cell price-editable" data-type="craft" data-craft-id="${escapeHtml(c.id)}" data-tier="${t}" data-empty="1" title="点击填写价格"><span class="price-missing">无</span></td>`
+          : `<td class="price-cell price-editable" data-type="craft" data-craft-id="${escapeHtml(c.id)}" data-tier="${t}" title="点击编辑价格">¥ ${formatMoney(Number(v))}</td>`; }).join("")}
+    </tr>`).join("");
+  els.onlineCraftWrap.innerHTML = `<h4 class="online-sub-title">工艺价格矩阵 <span>（点「＋ 工艺行」新增工艺后填写价格）</span></h4>
+    ${crafts.length ? `<table class="data-table"><thead><tr><th>工艺名称</th>${tierKeys.map(t => `<th>${t} 张</th>`).join("")}</tr></thead><tbody>${craftRows}</tbody></table>`
+      : '<div class="empty-state">该纸张暂无工艺，点「＋ 工艺行」新增</div>'}`;
+}
+
+/** 属性字段变更 → 写入纸张（仅本地；云端需点「保存到云端」） */
+function applyOnlinePaperField(name, value) {
+  const papers = getPapersByPriceList(CURRENT_PRICE_LIST_ID);
+  const paper = papers[currentPaperIndex];
+  if (!paper) return;
+  const toNums = v => String(v || "").split(",").map(x => parseFloat(String(x).trim())).filter(v2 => Number.isFinite(v2));
+  switch (name) {
+    case "name": paper.name = String(value).trim() || paper.name; break;
+    case "shortName": paper.shortName = String(value).trim() || paper.shortName; break;
+    case "discount": { const v = parseFloat(value); if (Number.isFinite(v) && v > 0 && v <= 10) paper.discount = v; break; }
+    case "priceListId": { const v = String(value); if (PRICE_LISTS.some(pl => pl.id === v)) paper.priceListId = v; break; }
+    // v12.7：修正 Object.assign 顺序（新值在后，避免旧 tiers 覆盖新输入）；
+    // 重填档位时同时清空最高/最低倍数（需按新档位数重新填写）
+    case "dcTiers": { const t = toNums(value); paper.directCoeff = t.length ? Object.assign({}, paper.directCoeff || {}, { tiers: t, max: [], min: [] }) : null; break; }
+    case "dcMax": { const m = toNums(value); if (paper.directCoeff) paper.directCoeff.max = m; break; }
+    case "dcMin": { const m = toNums(value); if (paper.directCoeff) paper.directCoeff.min = m; break; }
+    case "bdMaxArea": { const v = parseFloat(value); paper.batchDirect = (Number.isFinite(v) && v > 0) ? Object.assign({ prices: {}, maxArea: v }, paper.batchDirect || {}) : null; break; }
+    case "bdPrices": {
+      const prices = {};
+      String(value || "").split(",").forEach(pair => { const kv = String(pair).split(":"); const t = parseInt(kv[0], 10); const pr = parseFloat(kv[1]); if (Number.isFinite(t) && Number.isFinite(pr)) prices[t] = pr; });
+      if (paper.batchDirect) paper.batchDirect.prices = prices;
+      break;
+    }
+    default: return;
+  }
+  // v12.7：不在此处置空——直接系数需分三步输入（档位/最高/最低），中间态必然不完整；
+  // 有效性由计算侧 paperHasDirectCoeff() 判断（不完整自动按无系数处理），此处保留用户输入。
+  saveToStorage("paperConfig", PAPER_CONFIG);
+  onCalculate();
+  setOnlineTplStatus(`已更新「${escapeHtml(paper.shortName || paper.name)}」的 ${escapeHtml(name)}（仅存本地；如需全员共享请点「保存到云端」）`, false);
+}
+
+/** 新增纸张（当前纸张报价表内），随后进入在线编辑 */
+function createOnlineNewPaper() {
+  const name = prompt("请输入新纸张全称（如 唛头-3：提花织唛）：", "");
+  if (!name || !name.trim()) return;
+  const shortName = prompt("请输入纸张简称（用于下拉显示与 Excel Sheet 名）：", name.trim().slice(0, 8)) || name.trim();
+  const prices = {};
+  getTableTierUniverse().forEach(t => { prices[t] = null; });
+  const paper = {
+    id: "paper_" + Date.now(),
+    name: name.trim(),
+    shortName: String(shortName).trim(),
+    priceListId: CURRENT_PRICE_LIST_ID,
+    discount: 1,
+    directCoeff: null,
+    batchDirect: null,
+    specs: [{ code: "001", maxArea: 0, prices: Object.assign({}, prices) }]
+  };
+  PAPER_CONFIG.push(paper);
+  onlinePaperId = paper.id;
+  saveToStorage("paperConfig", PAPER_CONFIG);
+  renderOnlinePaperEditor();
+  if (typeof syncPaperSelector === "function") syncPaperSelector();
+  onCalculate();
+  showToast(`已创建纸张「${paper.shortName}」，请填写规格价格后点「保存到本地」（云端需点「保存到云端」）`);
+}
+
+/** 新增工艺流程（当前在线编辑的纸张） */
+function addOnlineCraftRow() {
+  const papers = getPapersByPriceList(CURRENT_PRICE_LIST_ID);
+  const paper = papers[currentPaperIndex];
+  if (!paper) return;
+  if (!CRAFT_CONFIG[paper.id]) CRAFT_CONFIG[paper.id] = [];
+  const name = prompt("请输入工艺名称（如 烫金（单面）/ UV / 鸡眼 / 凹凸）：", "");
+  if (!name || !name.trim()) return;
+  const cname = name.trim();
+  if (CRAFT_CONFIG[paper.id].some(c => c.name === cname)) { showToast("该工艺名称已存在"); return; }
+  const prices = {};
+  getTableTierUniverse().forEach(t => { prices[t] = null; });
+  CRAFT_CONFIG[paper.id].push({ id: "craft_" + paper.id + "_" + Date.now(), name: cname, prices });
+  saveToStorage("craftConfig", CRAFT_CONFIG);
+  renderOnlinePaperEditor();
+  onCalculate();
+  showToast(`已新增工艺「${cname}」，请点击价格单元格填写（仅存本地，云端需点「保存到云端」）`);
+}
+
+/** 删除工艺（在线编辑器） */
+function deleteOnlineCraft(craftId) {
+  const papers = getPapersByPriceList(CURRENT_PRICE_LIST_ID);
+  const paper = papers[currentPaperIndex];
+  if (!paper) return;
+  const list = CRAFT_CONFIG[paper.id] || [];
+  const target = list.find(x => x.id === craftId);
+  if (!target) return;
+  if (!confirm(`确认删除工艺「${target.name}」及其全部档位价格？\n\n仅影响本机；云端需再点「保存到云端」。`)) return;
+  CRAFT_CONFIG[paper.id] = list.filter(x => x.id !== craftId);
+  saveToStorage("craftConfig", CRAFT_CONFIG);
+  renderOnlinePaperEditor();
+  onCalculate();
+  showToast(`工艺「${target.name}」已删除`);
+}
+
+/** 保存到本地（在线模板） */
+function saveOnlinePaperLocal() {
+  saveToStorage("paperConfig", PAPER_CONFIG);
+  saveToStorage("craftConfig", CRAFT_CONFIG);
+  renderOnlinePaperEditor();
+  onCalculate();
+  setOnlineTplStatus("已保存到本地（本机立即生效）。如需全员共享，请点右上角「保存到云端」。", false);
+  showToast("已保存到本地");
+}
+
 function handleOnlineGroupsClick(e) {
   const btn = e.target.closest("button[data-action]");
   if (!btn) return;
@@ -3445,7 +4173,7 @@ function exportPriceListTemplateById(priceListId) {
     const ws = XLSX.utils.aoa_to_sheet(paperToSheetRows(paper, pl));
     XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(paper.shortName || paper.name));
   }
-  XLSX.writeFile(wb, `KOKALabel${pl.name}修改模板_${formatDateFile()}.xlsx`);
+  XLSX.writeFile(wb, `KOKA${pl.name}修改模板_${formatDateFile()}.xlsx`);
   showToast(`「${pl.name}」修改模板已导出（${papers.length} 张）`);
 }
 
@@ -3626,7 +4354,7 @@ function exportSnapshotSet() {
     showToast("暂无快照可导出");
     return;
   }
-  downloadJson({ version: "10.9.0", count: list.length, snapshots: list }, "KOKALabel快照_" + formatDateFile() + ".json");
+  downloadJson({ version: "13.0", count: list.length, snapshots: list }, "KOKA快照_" + formatDateFile() + ".json");
   showToast("快照已导出");
 }
 
@@ -3650,7 +4378,9 @@ function collectCurrentQuoteInputs() {
     ropeId: els.rope?.querySelector('input[name="rope"]:checked')?.value || "",
     regionId: els.region?.value || "",
     customCoefficient: els.customCoeffInput?.value.trim() || "",
-    shippingOverride: els.shippingOverrideInput?.value.trim() || "",
+    // v11.0：shippingOverride 输入栏字段保留为空串（兼容旧历史记录结构）；
+    // 邮费临时修改改为 shippingPriceCache 会话覆盖，随计算结果直接入 snapshot
+    shippingOverride: "",
     tempCoefficients: els.tempCoeffInputs
       ? Array.from(els.tempCoeffInputs.querySelectorAll(".temp-coeff-input")).map(input => input.value)
       : []
@@ -3662,14 +4392,53 @@ function collectCurrentQuoteInputs() {
  * 直接系数模式：每纸临时直接系数）的当前生效值并计算修改后价格。
  * 无任何生效修改时返回 null（不写入记录）。
  */
+/** v12.6：就地编辑的会话级覆盖明细（折扣 / 工艺费 / 批量直接启用态） */
+function collectInlineOverrideDetails() {
+  const out = {};
+  if (Object.keys(discountCache).length) out.discounts = Object.assign({}, discountCache);
+  if (Object.keys(craftPriceCache).length) out.crafts = Object.assign({}, craftPriceCache);
+  if (Object.keys(batchDirectOnCache).length) out.batchDirectEnabled = Object.keys(batchDirectOnCache);
+  return Object.keys(out).length ? out : null;
+}
+
 function collectQuoteOverride() {
   if (!_lastResult) return null;
-  return calcMode === "direct" ? collectDirectTempOverride() : collectStandardOverride();
+  const base = calcMode === "direct" ? collectDirectTempOverride() : collectStandardOverride();
+  // v12.6：保存时必须并入就地编辑的临时修改（折扣/工艺费/批量直接），否则记录显示的是默认值
+  const inline = collectInlineOverrideDetails();
+  if (!base && !inline) return null;
+  const merged = Object.assign(
+    base || { kind: calcMode === "direct" ? "direct" : "standard", incomplete: !!_lastResult.costIncomplete },
+    inline || {}
+  );
+  // 就地覆盖存在但 base 缺少成本/报价摘要时，补充当前生效值（保证详情可回显）
+  if (inline && merged.newCost == null && _lastResult.cost != null) {
+    merged.newCost = _lastResult.cost;
+    if (Array.isArray(_lastResult.pricesByLevel)) {
+      merged.pricesByLevel = _lastResult.pricesByLevel.map(l => ({ levelName: l.levelName, price: l.price }));
+    }
+  }
+  return merged;
 }
 
 // 标准模式：临时毛利系数 + 邮费快速修改（v9.7 起与渲染卡片共用 computeStandardOverridePrice）
+// v10.9.0：吊绳费用临时修改并入 override——覆盖价已参与 calculate 的 cost/pricesByLevel，
+// 此处仅记录 { ropePrice, ropeBase, ropeMult } 供历史明细还原展示；仅有吊绳覆盖时
+// primary price 自动落到 snapshot.pricesByLevel（含覆盖价），无需改取值逻辑。
 function collectStandardOverride() {
-  return computeStandardOverridePrice(_lastResult, getOverrideValues());
+  const o = computeStandardOverridePrice(_lastResult, getOverrideValues());
+  if (_lastResult && _lastResult.ropePriceOverridden) {
+    const ropeOv = { ropePrice: _lastResult.ropePrice, ropeBase: _lastResult.ropeBase, ropeMult: _lastResult.ropeMult };
+    if (o) return Object.assign(o, ropeOv);
+    return Object.assign({ kind: "standard", incomplete: !!_lastResult.costIncomplete }, ropeOv);
+  }
+  // v11.0：邮费临时修改并入 override（覆盖价已参与 calculate 的 cost/pricesByLevel）
+  if (_lastResult && _lastResult.shippingPriceOverridden) {
+    const shipOv = { shippingPrice: _lastResult.shippingPrice };
+    if (o) return Object.assign(o, shipOv);
+    return Object.assign({ kind: "standard", incomplete: !!_lastResult.costIncomplete }, shipOv);
+  }
+  return o;
 }
 
 // 直接系数模式：每纸临时直接系数（v9.7 起与渲染结果共用 computeDirectTempTotals）
@@ -3724,7 +4493,22 @@ function saveCurrentQuote() {
 
   renderHistory();
   renderStats();
-  showToast(`报价已保存：${record.title}`);
+  // v11.1：保存提示基于当前界面——有临时修改时列出改动项（保存值 = 屏幕显示值），
+  // 无任何修改时明确提示是默认报价
+  const override = collectQuoteOverride();
+  const changes = [];
+  if (override) {
+    if (override.coeff != null) changes.push("毛利系数 ×" + override.coeff);
+    if (override.ropePrice != null) changes.push("吊绳费用 ¥" + formatMoney(override.ropePrice));
+    if (override.shippingPrice != null) changes.push("邮费 ¥" + formatMoney(override.shippingPrice));
+    // v12.6：就地编辑的折扣 / 工艺费 / 批量直接启用
+    if (override.discounts) changes.push(`折扣 ×${Object.values(override.discounts).length} 处`);
+    if (override.crafts) changes.push(`工艺费 ${Object.values(override.crafts).length} 处`);
+    if (override.batchDirectEnabled) changes.push(`批量直接报价 ${override.batchDirectEnabled.length} 张`);
+  }
+  showToast(changes.length
+    ? `报价已保存（含临时修改：${changes.join("、")}）`
+    : `报价已保存（当前为默认报价，无临时修改）`);
 }
 
 function getHistoryRecordCost(record) {
@@ -3956,7 +4740,7 @@ function exportStatsReport() {
   XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(
     [["利润区间", "报价单数"]].concat(brackets.map(b => [safeExcelText(b.label), b.count]))
   ), "利润分布");
-  XLSX.writeFile(wb, "KOKALabel统计报表_" + formatDateFile() + ".xlsx");
+  XLSX.writeFile(wb, "KOKA统计报表_" + formatDateFile() + ".xlsx");
   showToast("统计报表已导出");
 }
 
@@ -3968,11 +4752,28 @@ function safeExcelText(v) {
 
 function renderHistory() {
   const list = getHistory();
-  if (!els.historyTable || !els.historyEmpty) return;
-  const tbody = els.historyTable.querySelector("tbody");
-  els.historyEmpty.style.display = list.length ? "none" : "block";
-  els.historyTable.style.display = list.length ? "table" : "none";
-  tbody.innerHTML = list.map(h => {
+  // v11.1：渲染逻辑全局化——数据管理页主表与浮窗表（dialogHistoryTable）共用同一份数据与行 HTML，
+  // 任何入口（保存/删除/清空/载入）刷新时两处自动同步
+  const rowsHtml = buildHistoryRowsHtml(list);
+  if (els.historyTable && els.historyEmpty) {
+    const tbody = els.historyTable.querySelector("tbody");
+    els.historyEmpty.style.display = list.length ? "none" : "block";
+    els.historyTable.style.display = list.length ? "table" : "none";
+    tbody.innerHTML = rowsHtml;
+    bindHistoryTableActions(tbody, { closeOnLoad: false });
+  }
+  if (els.dialogHistoryTable && els.dialogHistoryEmpty) {
+    const dialogTbody = els.dialogHistoryTable.querySelector("tbody");
+    els.dialogHistoryEmpty.style.display = list.length ? "none" : "block";
+    els.dialogHistoryTable.style.display = list.length ? "table" : "none";
+    dialogTbody.innerHTML = rowsHtml;
+    bindHistoryTableActions(dialogTbody, { closeOnLoad: true });
+  }
+}
+
+/** v11.1：历史记录行 HTML（renderHistory 的数据-视图映射核心） */
+function buildHistoryRowsHtml(list) {
+  return list.map(h => {
     const title = h.title || h.customerName || h.recordNo || "历史报价";
     const recordNo = h.recordNo || h.id || "旧版记录";
     const tier = getHistoryRecordTier(h);
@@ -4004,9 +4805,10 @@ function renderHistory() {
       </tr>
     `;
   }).join("");
+}
 
-  // v10.7.0（对齐 v9.7）：表格级事件委托（onclick 赋值天然幂等，重建 innerHTML 不会叠加监听），
-  // 替代逐行 addEventListener——历史记录几百条时渲染明显更快；disabled 按钮不触发 click，无需额外过滤
+/** v11.1：历史表操作委托（表格级 onclick 赋值幂等，重建 innerHTML 不叠加监听） */
+function bindHistoryTableActions(tbody, { closeOnLoad }) {
   tbody.onclick = (event) => {
     const btn = event.target.closest("[data-action]");
     if (!btn) return;
@@ -4015,7 +4817,10 @@ function renderHistory() {
     if (action === "view-history") {
       showHistoryDetail(id);
     } else if (action === "load-history") {
-      if (!btn.disabled) loadHistoryParameters(id);
+      if (!btn.disabled) {
+        loadHistoryParameters(id);
+        if (closeOnLoad) closeHistoryListDialog();   // 浮窗入口：载入后收起浮窗
+      }
     } else if (action === "delete-history") {
       const item = getHistory().find(x => x.id === id);
       if (!item) return;
@@ -4063,6 +4868,30 @@ function buildOverrideDetailHtml(o) {
       return `<div class="history-override-item"><span>${escapeHtml(it.name || "纸张")} × ${escapeHtml(String(it.coeff))}</span><strong>${it.price == null ? "缺价" : "¥ " + formatMoney(it.price)}</strong></div>`;
     }).join("") + '</div>';
     rows += `<div class="history-override-price total"><span>修改后总价</span><strong>${o.incomplete ? "部分缺价" : "¥ " + formatMoney(o.total)}</strong></div>`;
+  }
+  // v12.6：就地编辑覆盖明细（折扣 / 工艺费 / 批量直接启用态）——对所有 kind 追加显示
+  if (o.discounts || o.crafts || o.batchDirectEnabled) {
+    const items = [];
+    if (o.discounts) {
+      Object.keys(o.discounts).forEach(pid => {
+        const paper = PAPER_CONFIG.find(x => x.id === pid);
+        items.push(`<div class="history-override-item"><span>折扣 · ${escapeHtml(paper ? (paper.shortName || paper.name) : pid)}</span><strong>×${escapeHtml(String(o.discounts[pid]))}</strong></div>`);
+      });
+    }
+    if (o.crafts) {
+      Object.keys(o.crafts).forEach(k => {
+        const pid = String(k).split("_")[0];
+        const paper = PAPER_CONFIG.find(x => x.id === pid);
+        items.push(`<div class="history-override-item"><span>工艺费 · ${escapeHtml(paper ? (paper.shortName || paper.name) : pid)}</span><strong>¥ ${formatMoney(Number(o.crafts[k]))}</strong></div>`);
+      });
+    }
+    if (Array.isArray(o.batchDirectEnabled)) {
+      o.batchDirectEnabled.forEach(pid => {
+        const paper = PAPER_CONFIG.find(x => x.id === pid);
+        items.push(`<div class="history-override-item"><span>批量直接报价已启用 · ${escapeHtml(paper ? (paper.shortName || paper.name) : pid)}</span><strong>—</strong></div>`);
+      });
+    }
+    rows += '<div class="history-override-summary">就地编辑（保存时生效）</div><div class="history-override-items">' + items.join("") + '</div>';
   }
   return `
     <section class="history-detail-section history-override-section">
@@ -4243,7 +5072,25 @@ function loadHistoryParameters(recordId) {
   if (ropeInput) ropeInput.checked = true;
   if (els.region && inputs.regionId) els.region.value = inputs.regionId;
   if (els.customCoeffInput) els.customCoeffInput.value = inputs.customCoefficient || "";
-  if (els.shippingOverrideInput) els.shippingOverrideInput.value = inputs.shippingOverride || "";
+  // v11.0：历史记录的「邮费快速修改」还原为就地覆盖缓存（输入栏已移除，override.newShipping 语义不变）
+  {
+    const ovShipping = Number(record?.snapshot?.override?.newShipping);
+    if (Number.isFinite(ovShipping) && ovShipping >= 0 && inputs.regionId && inputs.tier) {
+      shippingPriceCache[inputs.regionId + "_" + Number(inputs.tier)] = ovShipping;
+    }
+  }
+  // v12.6：还原就地编辑覆盖（吊绳临时价 / 折扣 / 工艺费 / 批量直接启用态）——保证载入后与保存时一致
+  try {
+    const ov = (record && record.snapshot && record.snapshot.override) || {};
+    discountCache = {}; craftPriceCache = {}; batchDirectOnCache = {}; ropePriceCache = {};
+    if (ov.discounts && typeof ov.discounts === "object") Object.assign(discountCache, ov.discounts);
+    if (ov.crafts && typeof ov.crafts === "object") Object.assign(craftPriceCache, ov.crafts);
+    if (Array.isArray(ov.batchDirectEnabled)) ov.batchDirectEnabled.forEach(pid => { if (pid) batchDirectOnCache[pid] = true; });
+    const ovRope = Number(ov.ropePrice);
+    if (Number.isFinite(ovRope) && ovRope >= 0 && inputs.ropeId && inputs.tier) {
+      ropePriceCache[inputs.ropeId + "_" + Number(inputs.tier)] = ovRope;
+    }
+  } catch (e) { console.error("[v12.6] 载入覆盖还原失败:", e); }
 
   onCalculate();
 
@@ -4264,10 +5111,24 @@ function loadHistoryParameters(recordId) {
   showToast("已载入历史参数，并按当前价格重新计算");
 }
 
+/**
+ * v11.1：「查看报价记录」改为打开报价历史浮窗（不再跳转数据管理页）；
+ * 浮窗与数据管理-报价历史共用 renderHistory 渲染（全局一致）。
+ */
 function openQuoteHistoryPanel() {
-  switchPage("profile");
-  switchTab("history");
-  document.getElementById("panel-history")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  openHistoryDialog();
+}
+
+/** v11.1：打开报价历史列表浮窗（打开时刷新，保证与最新数据一致） */
+function openHistoryDialog() {
+  if (!els.historyListDialog) return;
+  renderHistory();
+  if (typeof els.historyListDialog.showModal === "function") els.historyListDialog.showModal();
+}
+
+/** v11.1：关闭报价历史列表浮窗（载入参数后自动收起） */
+function closeHistoryListDialog() {
+  if (els.historyListDialog && els.historyListDialog.open) els.historyListDialog.close();
 }
 
 function clearHistory() {
@@ -4276,13 +5137,17 @@ function clearHistory() {
   renderHistory();
   renderStats();
   closeHistoryDetail();
+  closeHistoryListDialog();
   showToast("历史已清空");
 }
 
+// v10.8.1 安全修复：原实现经 div.textContent→innerHTML 序列化，只转义 & < >，
+// 不转义引号——用于 data-code="..."/title="..." 等双引号属性插值时可被属性逃逸注入。
+// 改为正则替换（对齐 auth.js 的 KOKA.esc），textContent 序列化实现禁用于属性场景。
 function escapeHtml(text) {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML;
+  return String(text == null ? "" : text).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+  }[c]));
 }
 
 // -------------------- 本地备份 / 恢复 --------------------
@@ -4294,7 +5159,7 @@ function setLocalBackupStatus(html, isError) {
 
 function exportLocalBackup() {
   const data = {
-    version: "10.9.0",
+    version: "12.8",
     kind: "local-backup",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
@@ -4416,11 +5281,8 @@ function importLocalBackup(file) {
         SHIPPING_CONFIG.length = 0;
         data.shippingConfig.forEach(s => SHIPPING_CONFIG.push(s));
         saveToStorage("shippingConfig", SHIPPING_CONFIG);
-        if (els.region) {
-          els.region.innerHTML = '<option value="">请选择地区</option>' +
-            SHIPPING_CONFIG.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("");
-          if (SHIPPING_CONFIG.length > 0) els.region.value = SHIPPING_CONFIG[0].id;
-        }
+        clearRopeShipPriceCaches(); // v11.3：region id 可能变化，清理临时价缓存
+        buildShippingOptions();
       }
       if (data.snapshots) saveSnapshots(data.snapshots);
       if (data.history) saveHistory(data.history);
@@ -4450,7 +5312,7 @@ function importLocalBackup(file) {
 // -------------------- 导入 / 导出完整配置 --------------------
 function exportFullData() {
   const data = {
-    version: "10.9.0",
+    version: "12.8",
     exportAt: new Date().toISOString(),
     priceLists: PRICE_LISTS,
     priceListGroups: PRICE_LIST_GROUPS, // v10.7.0：随配置导出报价表组结构
@@ -4515,11 +5377,8 @@ function importFullData(file) {
         SHIPPING_CONFIG.length = 0;
         data.shippingConfig.forEach(s => SHIPPING_CONFIG.push(s));
         saveToStorage("shippingConfig", SHIPPING_CONFIG);
-        if (els.region) {
-          els.region.innerHTML = '<option value="">请选择地区</option>' +
-            SHIPPING_CONFIG.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("");
-          if (SHIPPING_CONFIG.length > 0) els.region.value = SHIPPING_CONFIG[0].id;
-        }
+        clearRopeShipPriceCaches(); // v11.3：region id 可能变化，清理临时价缓存
+        buildShippingOptions();
       }
       if (data.snapshots) saveSnapshots(data.snapshots);
       if (data.history) saveHistory(data.history);
@@ -4631,10 +5490,11 @@ function paperToSheetRows(paper, priceList) {
     ["报价表全称", safeExcelText(paper.name)],
     ["简称", safeExcelText(paper.shortName)],
     ["折扣系数", paper.discount],
-    ["是否出血", paper.hasBleed === false ? "否" : "是"],
+    // v10.8.0：新增「是否出血」行；「备注」行改为写出报价表备注（原为固定空串）
+    ["是否出血", pl.bleed === false ? "否" : "是"],
     ...directCoeffRows(paper, tierKeys),
     ...batchDirectRows(paper, tierKeys),
-    ["备注", paper.notes || ""],
+    ["备注", pl.note ? String(pl.note) : ""],
     [],
     headerRow,
     ...dataRows,
@@ -4681,13 +5541,17 @@ function downloadPaperTemplate() {
   DEFAULT_PAPER_CONFIG.forEach((paper, idx) => {
     const rows = [];
     // 元信息区
-    rows.push(["所属小组", GROUP_NAME_MAP[getCurrentPriceList().groupId] || GROUP_META.name]);
-    rows.push(["总报价表", getCurrentPriceList().name]);
+    // v10.8.0：模板现含多个报价表，元信息须按"纸张所属报价表"取名（原实现一律用当前报价表会标错）；
+    //          并新增「是否出血」行，导入时据此决定该报价表是否加 3mm 出血。
+    const tplPl = PRICE_LISTS.find(p => p.id === paper.priceListId)
+      || DEFAULT_PRICE_LISTS.find(p => p.id === paper.priceListId)
+      || getCurrentPriceList();
+    rows.push(["所属小组", GROUP_NAME_MAP[tplPl.groupId] || GROUP_META.name]);
+    rows.push(["总报价表", tplPl.name]);
     rows.push(["报价表全称", paper.name]);
     rows.push(["简称", paper.shortName]);
     rows.push(["折扣系数", paper.discount]);
-    // v10.8.0：是否出血（默认出血）；填「否」时面积不加 3mm 并按区间匹配
-    rows.push(["是否出血", paper.hasBleed === false ? "否" : "是"]);
+    rows.push(["是否出血", tplPl.bleed === false ? "否" : "是"]);
     // 直接系数三行（有系数填实际值，无系数用价格档位占位）
     const dc = paper.directCoeff;
     const hasDC = dc && Array.isArray(dc.tiers) && dc.tiers.length > 0 &&
@@ -4704,7 +5568,7 @@ function downloadPaperTemplate() {
     rows.push(["批量直接报价最大面积", hasBD ? bd.maxArea : ""]);
     rows.push(["批量直接报价档位", ...bdTiers]);
     rows.push(["批量直接报价价格", ...(hasBD ? bdTiers.map(t => (bd.prices[t] == null ? "" : bd.prices[t])) : bdTiers.map(() => ""))]);
-    rows.push(["备注", paper.notes || "直接系数档位/最高倍数/最低倍数三行：档位为批量张数，最高倍数→普通客户，最低倍数→大客户，中间等级自动等差插值。无直接系数的纸张按标准报价（乘折扣系数）计算。批量直接报价三行：最大面积（出血后）+ 档位 + 价格，面积在最大面积内时直接按批量价格报价（不打折、不乘系数），工艺费用直接叠加；无批量直接报价的纸张留空即可。"]);
+    rows.push(["备注", "直接系数档位/最高倍数/最低倍数三行：档位为批量张数，最高倍数→普通客户，最低倍数→大客户，中间等级自动等差插值。无直接系数的纸张按标准报价（乘折扣系数）计算。批量直接报价三行：最大面积（出血后）+ 档位 + 价格，面积在最大面积内时直接按批量价格报价（不打折、不乘系数），工艺费用直接叠加；无批量直接报价的纸张留空即可。"]);
     rows.push([]);
 
     // 规格区：取规格档位 + 工艺档位并集
@@ -4744,13 +5608,16 @@ function downloadPaperTemplate() {
     XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName(paper.shortName || ("Sheet" + (idx + 1))));
   });
 
-  XLSX.writeFile(wb, "KOKA1号报价表模板_" + formatDateFile() + ".xlsx");
-  showToast("模板已下载（" + DEFAULT_PAPER_CONFIG.length + "张表，含直接系数档位规则行）");
+  XLSX.writeFile(wb, "KOKA报价表模板_" + formatDateFile() + ".xlsx");
+  showToast("模板已下载（" + DEFAULT_PAPER_CONFIG.length + "张表，含直接系数档位规则行；同简称纸张导入时自动编号）");
 }
+
+// v10.8.0：报价表模板「备注」行里写的是格式填写说明，不是真备注——导入时按此前缀识别并忽略
+const NOTE_PLACEHOLDER_PREFIX = "直接系数档位/最高倍数/最低倍数三行";
 
 function parsePaperExcel(arrayBuffer) {
   if (typeof XLSX === "undefined") {
-    throw new Error("Excel 库未加载，请稍后重试");
+    // v10.8.0：原实现有两行紧邻的 throw，第二行永远不可达（死代码），已删除
     throw new Error("Excel 库未加载，请检查网络");
   }
   const wb = XLSX.read(new Uint8Array(arrayBuffer), { type: "array" });
@@ -4764,6 +5631,9 @@ function parsePaperExcel(arrayBuffer) {
   const usedIds = new Set([...DEFAULT_PAPER_CONFIG.map(p => p.id), ...PAPER_CONFIG.map(p => p.id)]);
   // 解析报价表名称（取第一个 Sheet 的"总报价表"行）
   let priceListName = "";
+  // v10.8.0：报价表级字段——是否出血 / 备注（多 Sheet 时取第一个有值者）
+  let plBleed = null;
+  let plNote = null;
 
   wb.SheetNames.forEach((sheetName, sheetIndex) => {
     const ws = wb.Sheets[sheetName];
@@ -4775,9 +5645,10 @@ function parsePaperExcel(arrayBuffer) {
 
     // 读取表头信息区（按标签匹配，兼容有无"所属小组"/"总报价表"行）
     let name = "", shortName = "", discountRaw = "";
-    // v10.8.0：是否出血（默认出血）；模板「是否出血」填「否」时面积不加 3mm 并按区间匹配
-    let hasBleed = true;
-    for (let i = 0; i < Math.min(rows.length, 8); i++) {
+    // v10.8.0：新增读取「是否出血」（是/否）与「备注」
+    let bleedRaw = "", noteRaw = null;
+    // v10.8.0：信息区行数由 8 放宽到 16（新增两行后，原窗口已不够覆盖到「备注」之前的全部标签）
+    for (let i = 0; i < Math.min(rows.length, 16); i++) {
       const label = String(rows[i] && rows[i][0] || "").trim();
       const val = rows[i] && rows[i][1];
       if (label === "所属小组") continue;
@@ -4789,12 +5660,16 @@ function parsePaperExcel(arrayBuffer) {
       if (label === "1号报价表全称" || label === "报价表全称") name = String(val || "").trim();
       else if (label === "简称") shortName = String(val || "").trim();
       else if (label === "折扣系数") discountRaw = val;
-      else if (label === "是否出血") {
-        const hv = String(val == null ? "" : val).trim();
-        hasBleed = !(hv === "否" || hv === "0" || hv === "false" || hv === "False");
-      }
+      else if (label === "是否出血") bleedRaw = String(val == null ? "" : val).trim();
+      else if (label === "备注") { if (noteRaw === null) noteRaw = String(val == null ? "" : val); }
     }
     const discount = discountRaw === "" || discountRaw == null ? 1 : Number(discountRaw);
+    // 是否出血：留空 = 未指定（返回 null，调用方不改动）；"否/no/false/0/n" 视为不出血
+    const bleed = bleedRaw === "" ? null : !/^(否|no|false|0|n)$/i.test(bleedRaw);
+    // v10.8.0：汇总为报价表级字段（多 Sheet 时取第一个有值者）
+    if (plBleed === null && bleed !== null) plBleed = bleed;
+    // 模板里的「备注」是填写说明，不能当成报价表备注读进来
+    if ((plNote === null || plNote === "") && noteRaw && !noteRaw.startsWith(NOTE_PLACEHOLDER_PREFIX)) plNote = noteRaw;
 
     // 解析直接系数三行（直接系数档位 / 最高倍数 / 最低倍数），与报价表表格格式一致
     // 三行均填有值 → { tiers, max, min }；仅档位占位或缺失 → null（按标准报价计算）
@@ -4863,15 +5738,6 @@ function parsePaperExcel(arrayBuffer) {
       // 仅占位（无最大面积/价格）或无任何行 → batchDirect 保持 null
     }
 
-    // v10.9.0：读取「备注」行 → paper.notes（供报价表查询时独立框体展示）
-    let notes = "";
-    for (let i = 0; i < rows.length; i++) {
-      if (String(rows[i] && rows[i][0] || "").trim() === "备注") {
-        notes = String(rows[i][1] || "").trim();
-        break;
-      }
-    }
-
     if (!name) {
       errors.push(`「${sheetName}」缺少报价表全称，已跳过`);
       return;
@@ -4881,8 +5747,13 @@ function parsePaperExcel(arrayBuffer) {
       return;
     }
     if (shortNames.has(shortName)) {
-      errors.push(`简称「${shortName}」重复，已跳过`);
-      return;
+      // v11.5 修复（模板检查 T1）：全库模板含跨报价表同简称纸张（1楼/3楼 各有 350/400/702铜版纸等
+      // 7 组），原实现直接跳过会丢纸。改为自动编号（简称·2 / ·3 …）并警告，保证纸张不丢。
+      let seq = 2;
+      let renamed = shortName;
+      while (shortNames.has(renamed)) { renamed = shortName + "·" + seq; seq++; }
+      errors.push(`「${sheetName}」简称「${shortName}」与已有纸张重复，已自动改名为「${renamed}」`);
+      shortName = renamed;
     }
     if (isNaN(discount) || discount <= 0 || discount > 10) {
       errors.push(`「${sheetName}」折扣系数无效（应为 0~10 之间），已使用默认值 1`);
@@ -4930,7 +5801,10 @@ function parsePaperExcel(arrayBuffer) {
       }
     }
     if (midGap) {
-      errors.push(`「${sheetName}」档位表头中间存在空列（第 ${firstValidIdx + 3} 列附近），价格可能错位，请检查后重新导入`);
+      // v11.5 修复（模板检查 T3）：价格错位的数据不能入库——原实现仅警告仍继续导入，
+      // 会导致档位价格静默错位。现拒绝该 Sheet，要求修正后重新导入。
+      errors.push(`「${sheetName}」档位表头中间存在空列（第 ${firstValidIdx + 3} 列附近），价格将错位，已跳过该表，请修正后重新导入`);
+      return;
     }
 
     const specs = [];
@@ -4962,8 +5836,12 @@ function parsePaperExcel(arrayBuffer) {
           prices[tier] = null;
         } else {
           const price = Number(val);
+          // v11.5 修复（B1）：负价格拦截——手误负数不能作为合法价格入库
           if (isNaN(price)) {
             errors.push(`「${sheetName}」${code} 的 ${tier} 档价格无效，已按占位处理`);
+            prices[tier] = null;
+          } else if (price < 0) {
+            errors.push(`「${sheetName}」${code} 的 ${tier} 档价格为负数（${price}），已按占位处理，请修正后重新导入`);
             prices[tier] = null;
           } else {
             prices[tier] = price;
@@ -5002,6 +5880,22 @@ function parsePaperExcel(arrayBuffer) {
       }
     }
     if (craftHeaderIndex !== -1) {
+      // v11.5 修复（模板检查 T2）：校验工艺区档位表头与规格区一致——
+      // 工艺价按 row[1+i] 与规格 tierKeys 对齐读取，表头被手改后会静默错位
+      const craftHeaderRow = rows[craftHeaderIndex] || [];
+      const craftHeaderTiers = [];
+      for (let c = 1; c < craftHeaderRow.length; c++) {
+        const v = craftHeaderRow[c];
+        if (v !== "" && v != null && !isNaN(Number(v))) craftHeaderTiers.push(String(Number(v)));
+      }
+      const tiersMatch = craftHeaderTiers.length === tierKeys.length &&
+        craftHeaderTiers.every((t, i) => t === tierKeys[i]);
+      if (!tiersMatch) {
+        errors.push(`「${sheetName}」工艺区档位表头与规格区不一致（规格 ${tierKeys.join("/")} vs 工艺 ${craftHeaderTiers.join("/") || "空"}），工艺价格将错位，已跳过该表的工艺数据，请修正后重新导入`);
+        craftHeaderIndex = -1;
+      }
+    }
+    if (craftHeaderIndex !== -1) {
       for (let r = craftHeaderIndex + 1; r < rows.length; r++) {
         const row = rows[r];
         if (!row || !row.length) continue;
@@ -5023,8 +5917,12 @@ function parsePaperExcel(arrayBuffer) {
             prices[tier] = null;
           } else {
             const price = Number(val);
+            // v11.5 修复（B1）：负价格拦截
             if (isNaN(price)) {
               errors.push(`「${sheetName}」工艺「${craftName}」的 ${tier} 档价格无效，已按占位处理`);
+              prices[tier] = null;
+            } else if (price < 0) {
+              errors.push(`「${sheetName}」工艺「${craftName}」的 ${tier} 档价格为负数（${price}），已按占位处理`);
               prices[tier] = null;
             } else {
               prices[tier] = price;
@@ -5040,10 +5938,6 @@ function parsePaperExcel(arrayBuffer) {
       name,
       shortName,
       discount: isNaN(discount) || discount <= 0 || discount > 10 ? 1 : discount,
-      // v10.8.0：是否出血（默认出血）；模板未填该行或填「是」→ true，填「否」→ false
-      hasBleed,
-      // v10.9.0：备注（报价表查询时独立框体展示）；无备注时为空字符串
-      notes,
       // 直接系数：Sheet 专属配置，只读取报价表表格三行（直接系数档位/最高倍数/最低倍数）。
       // 表格未填有效直接系数时，匹配默认简称则继承默认配置，否则为 null（按标准报价计算）
       directCoeff: directCoeff || (defaultPaper && defaultPaper.directCoeff
@@ -5073,7 +5967,7 @@ function parsePaperExcel(arrayBuffer) {
     throw new Error(errors.join("；") || "没有可导入的报价表");
   }
 
-  return { papers, crafts: craftsByPaper, errors, priceListName: priceListName || "" };
+  return { papers, crafts: craftsByPaper, errors, priceListName: priceListName || "", bleed: plBleed, note: plNote };
 }
 
 function importPaperExcel(file) {
@@ -5085,10 +5979,19 @@ function importPaperExcel(file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const { papers, crafts, errors, priceListName } = parsePaperExcel(e.target.result);
+      const { papers, crafts, errors, priceListName, bleed, note } = parsePaperExcel(e.target.result);
       // 创建新报价表
       const plName = priceListName || `报价表${PRICE_LISTS.length + 1}`;
       const newPriceListId = addPriceList(plName);
+      // v10.8.0：把「是否出血」「备注」写入新建的报价表
+      {
+        const pl = PRICE_LISTS.find(p => p.id === newPriceListId);
+        if (pl) {
+          if (bleed !== null) pl.bleed = bleed;
+          if (note != null && note !== "") pl.note = note;
+          saveToStorage("priceLists", PRICE_LISTS);
+        }
+      }
       // 为导入的纸张设置 priceListId
       papers.forEach(p => { p.priceListId = newPriceListId; });
       // 追加到 PAPER_CONFIG（不替换已有报价表的纸张）
@@ -5103,9 +6006,11 @@ function importPaperExcel(file) {
       renderPriceListSelector();
       renderPriceTable();
       onCalculate();
+      // v10.8.1 安全修复：errors/successMsg 含 Excel 外部文件内容（sheet 名/简称等），
+      // 此处经 innerHTML 渲染，必须转义，防止恶意 Excel 注入 HTML
       const craftCount = Object.values(crafts).reduce((sum, arr) => sum + arr.length, 0);
-      const successMsg = `成功导入报价表「${plName}」（${papers.length} 张纸张${craftCount ? `，含 ${craftCount} 条工艺` : ""}）：${papers.map(p => p.shortName).join("、")}`;
-      const errMsg = errors.length ? `<br><span style="color:var(--danger)">警告：${errors.join("；")}</span>` : "";
+      const successMsg = `成功导入报价表「${escapeHtml(plName)}」（${papers.length} 张纸张${craftCount ? `，含 ${craftCount} 条工艺` : ""}）：${papers.map(p => escapeHtml(p.shortName)).join("、")}`;
+      const errMsg = errors.length ? `<br><span style="color:var(--danger)">警告：${errors.map(escapeHtml).join("；")}</span>` : "";
       setExcelStatus(successMsg + errMsg, false);
       showToast(`已导入报价表「${plName}」`);
     } catch (err) {
@@ -5172,10 +6077,11 @@ function downloadRopeTemplate() {
   const wb = XLSX.utils.book_new();
   const sample = DEFAULT_ROPE_CONFIG[0];
   const tierKeys = sample ? Object.keys(sample.prices) : ["500", "1000", "2000", "3000", "5000"];
+  // v12.5：表头末列新增「指定报价表」（填报价表名称如「3楼」，留空 = 全局生效）
   const rows = [
-    ["吊绳名称", ...tierKeys.map(String)],
-    ["不加吊绳", ...tierKeys.map(() => 0)],
-    ["普通吊绳", 5, 10, 20, 30, 50]
+    ["吊绳名称", ...tierKeys.map(String), "指定报价表"],
+    ["不加吊绳", ...tierKeys.map(() => 0), ""],
+    ["普通吊绳", 5, 10, 20, 30, 50, ""]
   ];
   const ws = XLSX.utils.aoa_to_sheet(rows);
   XLSX.utils.book_append_sheet(wb, ws, sanitizeSheetName("吊绳报价模板"));
@@ -5203,6 +6109,8 @@ function parseRopeExcel(arrayBuffer) {
     }
   }
   if (!tierKeys.length) throw new Error("未找到档位列，表头第 2 列起应为数字档位");
+  // v12.5：定位「指定报价表」列（旧模板无此列 → -1，全部按全局导入）
+  const targetColIdx = headerRow.findIndex(v => String(v || "").trim() === "指定报价表");
 
   const ropes = [];
   const seenNames = new Set();
@@ -5222,21 +6130,46 @@ function parseRopeExcel(arrayBuffer) {
 
     const prices = {};
     let allZero = true;
+    let hasAnyValue = false;
     for (let i = 0; i < tierKeys.length; i++) {
       const tier = tierKeys[i];
       const val = row[1 + i];
-      const price = val === "" || val == null ? 0 : Number(val);
+      // v10.8.0：空单元格保留为 null（未设价），不再折算成 0——
+      // 否则「忘了填价」与「不加吊绳的合法 0 价」无法区分，会导致缺价警示失效。
+      if (val === "" || val == null) {
+        prices[tier] = null;
+        allZero = false;
+        continue;
+      }
+      const price = Number(val);
       if (isNaN(price)) {
-        errors.push(`「${name}」的 ${tier} 档价格无效，已按 0 处理`);
-        prices[tier] = 0;
+        errors.push(`「${name}」的 ${tier} 档价格无效，已按未设价处理`);
+        prices[tier] = null;
+        allZero = false;
+      } else if (price < 0) {
+        // v11.5 修复（B1）：负价格拦截
+        errors.push(`「${name}」的 ${tier} 档价格为负数（${price}），已按未设价处理`);
+        prices[tier] = null;
+        allZero = false;
       } else {
         prices[tier] = price;
+        hasAnyValue = true;
+        if (price !== 0) allZero = false;
       }
-      if (prices[tier] !== 0) allZero = false;
     }
-    if (allZero) hasZeroOption = true;
+    if (allZero && hasAnyValue) hasZeroOption = true;
 
-    ropes.push({ id: "rope" + (ropes.length), name, prices });
+    // v12.5：解析「指定报价表」（按名称/id 匹配，未匹配则忽略并警告）
+    let targetPriceListId = "";
+    if (targetColIdx > -1) {
+      const tName = String(row[targetColIdx] || "").trim();
+      if (tName) {
+        const pl = PRICE_LISTS.find(p => p.name === tName || p.id === tName);
+        if (pl) targetPriceListId = pl.id;
+        else errors.push(`吊绳「${name}」指定报价表「${tName}」未找到，已按全局处理`);
+      }
+    }
+    ropes.push({ id: "rope" + (ropes.length), name, prices, targetPriceListId });
   }
 
   if (!ropes.length) throw new Error("没有可导入的吊绳");
@@ -5270,11 +6203,13 @@ function importRopeExcel(file) {
     try {
       const { ropes, errors } = parseRopeExcel(e.target.result);
       ROPE_CONFIG = ropes;
+      clearRopeShipPriceCaches(); // v11.3：rope id 重排，临时价缓存作废
       saveToStorage("ropeConfig", ROPE_CONFIG);
       rebuildRopeUI();
       onCalculate();
-      const successMsg = `成功导入 ${ropes.length} 种吊绳：${ropes.map(r => r.name).join("、")}`;
-      const errMsg = errors.length ? `<br><span style="color:var(--danger)">警告：${errors.join("；")}</span>` : "";
+      // v10.8.1 安全修复：同 importPaperExcel，errors 含 Excel 外部内容，innerHTML 渲染前必须转义
+      const successMsg = `成功导入 ${ropes.length} 种吊绳：${ropes.map(r => escapeHtml(r.name)).join("、")}`;
+      const errMsg = errors.length ? `<br><span style="color:var(--danger)">警告：${errors.map(escapeHtml).join("；")}</span>` : "";
       setRopeExcelStatus(successMsg + errMsg, false);
       showToast("吊绳 Excel 导入成功");
     } catch (err) {
@@ -5305,7 +6240,9 @@ function updateRopeFoldSummary() {
   if (!els.ropeFoldSummary || !els.rope) return;
   const checked = els.rope.querySelector('input[name="rope"]:checked');
   const rope = ROPE_CONFIG.find(r => r.id === (checked ? checked.value : ""));
-  const base = rope ? getRopeBasePrice(rope.prices) : null;
+  // v10.8.0：全 0 价的「不加吊绳」基准价补 0，摘要显示「¥0/千张」而不是留空
+  let base = rope ? getRopeBasePrice(rope.prices) : null;
+  if (base == null && isFreeRope(rope)) base = 0;
   els.ropeFoldSummary.textContent = rope
     ? `当前：${rope.name}${base != null ? `（¥${formatPriceRaw(base)}/千张）` : ""}`
     : "";
@@ -5318,10 +6255,114 @@ function toggleRopeFold() {
   if (els.ropeFoldHead) els.ropeFoldHead.setAttribute("aria-expanded", open ? "true" : "false");
 }
 
+// v11.2：快速切换档位折叠面板切换（默认折叠，状态不持久化）
+function toggleTierQuickFold() {
+  const box = els.tierQuickHead ? els.tierQuickHead.closest(".tier-quick-switch") : null;
+  if (!box) return;
+  const open = box.classList.toggle("open");
+  box.classList.toggle("collapsed", !open);
+  els.tierQuickHead.setAttribute("aria-expanded", open ? "true" : "false");
+}
+
+// -------------------- v11.4：报价表组查询分页（报价表/吊绳价格/邮费价格） --------------------
+/**
+ * 切换查询页子视图：按 [data-tview] 分组控制显隐（tview-quote 包装主体 + 分页/备注、
+ * ropePriceWrap、shippingPriceWrap），子导航按钮 active 同步。默认"报价表"视图。
+ */
+function switchTableView(view) {
+  if (!["quote", "rope", "shipping"].includes(view)) view = "quote";
+  // v11.6 修复：只切换 [data-tview] 区块——原选择器会把子导航按钮（同名 data-tview 属性）
+  // 一并 hidden，导致点「返回报价表」后吊绳/邮费按钮消失、无法再切换（用户反馈"卡死"）
+  document.querySelectorAll("#page-table [data-tview]").forEach(el => {
+    if (el.classList.contains("table-view-tab")) return;
+    el.hidden = el.dataset.tview !== view;
+  });
+  if (els.tableViewTabs) {
+    els.tableViewTabs.querySelectorAll(".table-view-tab").forEach(b => {
+      b.classList.toggle("active", b.dataset.tviewTab === view);
+    });
+  }
+}
+
+// -------------------- v11.4：个性化主题色（常见配色，仅本机生效） --------------------
+const THEME_COLORS = {
+  classic: { brand: "#0f6fc4", dark: "#0a4f8a", light: "#e8f2fb" },
+  ocean:   { brand: "#2563eb", dark: "#1e40af", light: "#dbeafe" },
+  emerald: { brand: "#059669", dark: "#047857", light: "#d1fae5" },
+  violet:  { brand: "#7c3aed", dark: "#5b21b6", light: "#ede9fe" },
+  coral:   { brand: "#dc2626", dark: "#991b1b", light: "#fee2e2" },
+  sunset:  { brand: "#ea580c", dark: "#c2410c", light: "#ffedd5" },
+  teal:    { brand: "#0891b2", dark: "#0e7490", light: "#cffafe" }
+};
+
+/** 应用主题色：覆盖 :root 的 --brand/--brand-dark/--brand-light（侧栏渐变等自动跟随），持久化到 localStorage
+ *  v11.5（N5）：key 前缀化为 tagPricing_themeColor（与项目存储体系一致），兼容读取旧键 themeColor */
+function applyThemeColor(name) {
+  const key = THEME_COLORS[name] ? name : "classic";
+  const t = THEME_COLORS[key];
+  const root = document.documentElement;
+  root.style.setProperty("--brand", t.brand);
+  root.style.setProperty("--brand-dark", t.dark);
+  root.style.setProperty("--brand-light", t.light);
+  try {
+    localStorage.setItem("tagPricing_themeColor", key);
+    localStorage.removeItem("themeColor"); // 迁移清理旧键
+  } catch (e) { /* 忽略 */ }
+  document.querySelectorAll("#themeColorGroup .theme-swatch").forEach(b => {
+    b.classList.toggle("active", b.dataset.theme === key);
+  });
+}
+
+/** 读取并应用已保存的主题色（启动时调用） */
+function initThemeColor() {
+  let saved = "classic";
+  try {
+    saved = localStorage.getItem("tagPricing_themeColor") || localStorage.getItem("themeColor") || "classic";
+  } catch (e) { /* 忽略 */ }
+  applyThemeColor(saved);
+}
+
+// -------------------- v11.5（G2）：表格密度三档（紧凑/标准/宽松，body class + localStorage） --------------------
+const TABLE_DENSITY = ["compact", "regular", "relaxed"];
+function applyTableDensity(d) {
+  const key = TABLE_DENSITY.includes(d) ? d : "regular";
+  document.body.classList.remove("table-density-compact", "table-density-relaxed");
+  if (key !== "regular") document.body.classList.add("table-density-" + key);
+  try { localStorage.setItem("tagPricing_tableDensity", key); } catch (e) { /* 忽略 */ }
+  document.querySelectorAll("#densityGroup .density-btn").forEach(b => {
+    b.classList.toggle("active", b.dataset.density === key);
+  });
+}
+function initTableDensity() {
+  let d = "regular";
+  try { d = localStorage.getItem("tagPricing_tableDensity") || "regular"; } catch (e) { /* 忽略 */ }
+  applyTableDensity(d);
+}
+
+/**
+ * v11.3 审查修复：清空吊绳/邮费临时价缓存。
+ * 导入吊绳/邮费 Excel 或恢复备份/重置后，rope/region 的 id 会重排（rope0..n / region1..n），
+ * 旧缓存 key 会错误命中新 id 对应的数据（临时价套到别的绳/地区上），必须在数据替换后清理。
+ */
+function clearRopeShipPriceCaches() {
+  ropePriceCache = {};
+  shippingPriceCache = {};
+}
+
 function rebuildRopeUI() {
-  // 重新渲染吊绳选择区（沿用与初始化一致的默认选择逻辑），并重新绑定实时计算事件
+  // v10.8.0（缺陷修复）：原实现直接用 renderRopeRadios() 重渲染，而该函数按
+  // APP_PROFILE.defaultRope 决定选中项 → 会把用户当前选中的吊绳悄悄换回默认值；
+  // 且调用方是「先 rebuildRopeUI() 再 onCalculate()」，导致报价算的是被换掉的那个吊绳。
+  // 现在：先记住当前选中项，重渲染后还原；仅在原选中项已不存在时才回落到默认。
+  if (!els.rope) return;
+  const prev = els.rope.querySelector('input[name="rope"]:checked')?.value || "";
   els.rope.innerHTML = renderRopeRadios();
+  if (prev && ROPE_CONFIG.some(r => r.id === prev)) {
+    const input = Array.from(els.rope.querySelectorAll('input[name="rope"]')).find(i => i.value === prev);
+    if (input) input.checked = true;
+  }
   bindRopeEvents();
+  updateRopeFoldSummary();
 }
 
 // -------------------- 邮费 Excel 导入 / 导出 / 模板 --------------------
@@ -5358,9 +6399,13 @@ function downloadShippingTemplate() {
   const tierKeys = sample ? Object.keys(sample.basePrices) : ["500", "1000", "2000", "5000", "10000"];
   const rows = [
     ["地区名称", ...tierKeys.map(String), "大于10000"],
-    ["广东省内", ...tierKeys.map(t => sample ? sample.basePrices[t] : 0), sample ? sample.overTierCoeff : 1],
-    ["江浙沪", ...tierKeys.map(() => 0), 1.2],
-    ["其他省份", ...tierKeys.map(() => 0), 1.3]
+    // v11.5 修复（模板检查 T4）：示例地区给非零占位价——原 0 元示例直接导入会被当成
+    // 「合法 0 元邮费」（hasExactTier 判有价），导致该地区按包邮计算。
+    // 示例价按档位索引取（档位数变化时自适应），导入前请改为实际运费。
+    // v12.5：末列新增「指定报价表」（填报价表名称如「3楼」，留空 = 全局生效）。
+    ["广东省内（示例，请改为实际运费）", ...tierKeys.map(t => (sample && sample.basePrices[t] != null ? sample.basePrices[t] : 0)), sample ? sample.overTierCoeff : 1, ""],
+    ["江浙沪（示例，请改为实际运费）", ...tierKeys.map((t, i) => [8, 12, 15, 20, 30, 50, 80, 100][i] ?? 10), 1.2, ""],
+    ["其他省份（示例，请改为实际运费）", ...tierKeys.map((t, i) => [10, 15, 20, 28, 40, 60, 90, 120][i] ?? 12), 1.3, ""]
   ];
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -5390,6 +6435,8 @@ function parseShippingExcel(arrayBuffer) {
     }
   }
   if (!tierKeys.length) throw new Error("未找到档位列，表头第 2 列起应为数字档位");
+  // v12.5：定位「指定报价表」列（旧模板无此列 → -1，全部按全局导入）
+  const targetColIdx = headerRow.findIndex(v => String(v || "").trim() === "指定报价表");
 
   const regions = [];
   const errors = [];
@@ -5405,8 +6452,12 @@ function parseShippingExcel(arrayBuffer) {
       const tier = tierKeys[i];
       const val = row[1 + i];
       const price = val === "" || val == null ? 0 : Number(val);
+      // v11.5 修复（B1）：负价格拦截
       if (isNaN(price)) {
         errors.push(`「${name}」的 ${tier} 档价格无效，已按 0 处理`);
+        basePrices[tier] = 0;
+      } else if (price < 0) {
+        errors.push(`「${name}」的 ${tier} 档价格为负数（${price}），已按 0 处理，请修正后重新导入`);
         basePrices[tier] = 0;
       } else {
         basePrices[tier] = price;
@@ -5419,11 +6470,22 @@ function parseShippingExcel(arrayBuffer) {
       ? Number(row[coeffIdx]) : 1;
     if (isNaN(coeff)) errors.push(`「${name}」的"大于10000"系数无效，已按 1 处理`);
 
+    // v12.5：解析「指定报价表」（按名称/id 匹配，未匹配则忽略并警告）
+    let targetPriceListId = "";
+    if (targetColIdx > -1) {
+      const tName = String(row[targetColIdx] || "").trim();
+      if (tName) {
+        const pl = PRICE_LISTS.find(p => p.name === tName || p.id === tName);
+        if (pl) targetPriceListId = pl.id;
+        else errors.push(`地区「${name}」指定报价表「${tName}」未找到，已按全局处理`);
+      }
+    }
     regions.push({
       id: "region" + (regions.length + 1),
       name,
       basePrices,
-      overTierCoeff: isNaN(coeff) ? 1 : coeff
+      overTierCoeff: isNaN(coeff) ? 1 : coeff,
+      targetPriceListId
     });
   }
 
@@ -5444,17 +6506,15 @@ function importShippingExcel(file) {
       // 直接替换 SHIPPING_CONFIG 的内容（保持引用不变）
       SHIPPING_CONFIG.length = 0;
       regions.forEach(r => SHIPPING_CONFIG.push(r));
+      clearRopeShipPriceCaches(); // v11.3：region id 重排，临时价缓存作废
       // v8.2：导入后持久化到 localStorage，刷新不丢失
       saveToStorage("shippingConfig", SHIPPING_CONFIG);
-      // 重新渲染地区下拉
-      if (els.region) {
-        els.region.innerHTML = '<option value="">请选择地区</option>' +
-          SHIPPING_CONFIG.map(s => `<option value="${escapeHtml(s.id)}">${escapeHtml(s.name)}</option>`).join("");
-        if (SHIPPING_CONFIG.length > 0) els.region.value = SHIPPING_CONFIG[0].id;
-      }
+      // 重新渲染地区下拉（v12.5：走统一构建，含指定报价表过滤）
+      buildShippingOptions();
       onCalculate();
-      const successMsg = `成功导入 ${regions.length} 个地区的邮费：${regions.map(r => r.name).join("、")}`;
-      const errMsg = errors.length ? `<br><span style="color:var(--danger)">警告：${errors.join("；")}</span>` : "";
+      // v10.8.1 安全修复：同 importPaperExcel，errors 含 Excel 外部内容，innerHTML 渲染前必须转义
+      const successMsg = `成功导入 ${regions.length} 个地区的邮费：${regions.map(r => escapeHtml(r.name)).join("、")}`;
+      const errMsg = errors.length ? `<br><span style="color:var(--danger)">警告：${errors.map(escapeHtml).join("；")}</span>` : "";
       setShippingExcelStatus(successMsg + errMsg, false);
       showToast("邮费 Excel 导入成功");
     } catch (err) {
@@ -5486,6 +6546,16 @@ function switchPage(pageName) {
     renderPriceListSelector();
     renderPriceTable();
     renderTierHeaderEditor();
+  } else if (pageName === "data") {
+    // v11.1：数据管理独立页——报价历史 tab 默认优先显示
+    renderHistory();
+    renderSnapshots();
+    renderStats();
+    switchTab("history");
+  } else if (pageName === "settings") {
+    // v11.1：报价设置独立页
+    renderLevelSettings();
+    loadProfileToUI();
   } else if (pageName === "profile") {
     renderLevelSettings();
     loadProfileToUI();
@@ -5514,6 +6584,76 @@ function bindEvents() {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleRopeFold(); }
     });
   }
+
+  // v11.2：快速切换档位折叠面板（默认折叠）
+  if (els.tierQuickHead) {
+    els.tierQuickHead.addEventListener("click", toggleTierQuickFold);
+    els.tierQuickHead.addEventListener("keydown", e => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleTierQuickFold(); }
+    });
+  }
+
+  // v11.4：报价表组查询分页（子视图切换）
+  if (els.tableViewTabs) {
+    els.tableViewTabs.addEventListener("click", e => {
+      const btn = e.target.closest(".table-view-tab");
+      if (btn) switchTableView(btn.dataset.tviewTab);
+    });
+  }
+  // v11.5：吊绳/邮费子视图内的「← 返回报价表」按钮（与顶部子导航双路径，杜绝卡在子视图）
+  document.querySelectorAll("#page-table [data-tview-back]").forEach(btn => {
+    btn.addEventListener("click", () => switchTableView(btn.dataset.tviewBack));
+  });
+
+  // v11.4：个性化主题色（色块点击即切换并持久化）
+  if (els.themeColorGroup) {
+    els.themeColorGroup.addEventListener("click", e => {
+      const sw = e.target.closest(".theme-swatch");
+      if (sw) applyThemeColor(sw.dataset.theme);
+    });
+  }
+
+  // v12.3：结果区折扣数字就地编辑 + 批量直接报价开关（document 委托，重渲染不丢绑定）
+  document.addEventListener("click", e => {
+    const cSpan = e.target.closest("[data-craft-edit]");
+    if (cSpan) { startCraftEdit(cSpan); return; }
+    const dSpan = e.target.closest("[data-discount-edit]");
+    if (dSpan) { startDiscountEdit(dSpan); return; }
+    const bdBtn = e.target.closest("[data-bd-toggle]");
+    if (bdBtn) { toggleBatchDirectForPaper(bdBtn.dataset.bdToggle); return; }
+  });
+
+  // v11.5（P-A1）/v11.9：报价设置页可折叠分组（公司信息/默认选项，渐进披露保一屏）
+  document.querySelectorAll('#page-settings .foldable-title').forEach(title => {
+    title.addEventListener('click', () => {
+      const sec = title.closest('.profile-section');
+      if (sec) sec.classList.toggle('open');
+    });
+  });
+
+  // v11.5（G2）：表格密度切换
+  if (els.densityGroup) {
+    els.densityGroup.addEventListener("click", e => {
+      const btn = e.target.closest(".density-btn");
+      if (btn) applyTableDensity(btn.dataset.density);
+    });
+  }
+
+  // v11.5（T-A2）：系数/批量直接表渐进披露折叠
+  ["directCoeffHead", "batchDirectHead"].forEach(id => {
+    const head = document.getElementById(id);
+    if (head) {
+      head.addEventListener("click", () => {
+        const box = head.closest(".fold-box");
+        const open = box.classList.toggle("open");
+        head.setAttribute("aria-expanded", open ? "true" : "false");
+      });
+    }
+  });
+
+  // v11.2：个人主页功能入口（数据管理/报价设置）
+  if (els.gotoDataMgrBtn) els.gotoDataMgrBtn.addEventListener("click", () => switchPage("data"));
+  if (els.gotoSettingsBtn) els.gotoSettingsBtn.addEventListener("click", () => switchPage("settings"));
 
   // v10.1：个性化面板（字号调整，所有用户可用）
   bindPersonalizeEvents();
@@ -5612,6 +6752,15 @@ function bindEvents() {
     tab.addEventListener("click", () => switchTab(tab.dataset.tab));
   });
 
+  // v12.9：匹配规则编辑器（事件委托，行随渲染重建也无需重绑）
+  if (els.ruleSetSelect) els.ruleSetSelect.addEventListener("change", renderSpecRules);
+  if (els.rulesTbody) {
+    els.rulesTbody.addEventListener("change", persistRulesFromDom);
+    els.rulesTbody.addEventListener("click", handleRulesClick);
+  }
+  if (els.rulesAddBtn) els.rulesAddBtn.addEventListener("click", handleRulesAdd);
+  if (els.rulesResetBtn) els.rulesResetBtn.addEventListener("click", handleRulesReset);
+
   // v10.7.0 在线修改：组卡片事件委托（容器不随 innerHTML 重建，只需绑一次）
   if (els.onlineGroupsWrap) {
     els.onlineGroupsWrap.addEventListener("click", handleOnlineGroupsClick);
@@ -5647,8 +6796,46 @@ function bindEvents() {
   if (els.importDataBtn) els.importDataBtn.addEventListener("click", () => els.importFile.click());
   if (els.importFile) els.importFile.addEventListener("change", e => importFullData(e.target.files[0]));
   if (els.resetToDefaultsBtn) els.resetToDefaultsBtn.addEventListener("click", resetToDefaults);
+  // v12.7：在线制作纸张报价表（在线模板）事件
+  if (els.onlinePaperSelect) {
+    els.onlinePaperSelect.addEventListener("change", () => {
+      onlinePaperId = els.onlinePaperSelect.value;
+      renderOnlinePaperEditor();
+    });
+  }
+  if (els.onlinePaperFields) {
+    els.onlinePaperFields.addEventListener("change", e => {
+      const el = e.target.closest("[data-of]");
+      if (el) applyOnlinePaperField(el.dataset.of, el.value);
+    });
+  }
+  {
+    const newPaperBtn = document.getElementById("onlineNewPaperBtn");
+    if (newPaperBtn) newPaperBtn.addEventListener("click", createOnlineNewPaper);
+    const addSpecBtn = document.getElementById("onlineAddSpecBtn");
+    if (addSpecBtn) addSpecBtn.addEventListener("click", () => { addSpecRow(); renderOnlinePaperEditor(); });
+    const addCraftBtn = document.getElementById("onlineAddCraftBtn");
+    if (addCraftBtn) addCraftBtn.addEventListener("click", addOnlineCraftRow);
+    const savePaperBtn = document.getElementById("onlineSavePaperBtn");
+    if (savePaperBtn) savePaperBtn.addEventListener("click", saveOnlinePaperLocal);
+  }
+  if (els.onlineCraftWrap) {
+    els.onlineCraftWrap.addEventListener("click", e => {
+      const del = e.target.closest("[data-of-del-craft]");
+      if (del) { e.stopPropagation(); deleteOnlineCraft(del.dataset.ofDelCraft); }
+    });
+  }
+
+  // v12.5：吊绳/邮费「关闭指定」按钮
+  const ropeClearScopeBtn = document.getElementById("ropeClearScopeBtn");
+  if (ropeClearScopeBtn) ropeClearScopeBtn.addEventListener("click", () => clearAllScopes("rope"));
+  const shipClearScopeBtn = document.getElementById("shipClearScopeBtn");
+  if (shipClearScopeBtn) shipClearScopeBtn.addEventListener("click", () => clearAllScopes("shipping"));
   const resetAllBtn = document.getElementById("resetAllSettingsBtn");
   if (resetAllBtn) resetAllBtn.addEventListener("click", resetAllLocalSettings);
+  // v12.1：彻底恢复出厂（含历史/快照/本机偏好/内存缓存），与上面的全局恢复并存
+  const resetEverythingBtn = document.getElementById("resetEverythingBtn");
+  if (resetEverythingBtn) resetEverythingBtn.addEventListener("click", resetEverything);
   if (els.exportLocalBackupBtn) els.exportLocalBackupBtn.addEventListener("click", exportLocalBackup);
   if (els.importLocalBackupBtn) els.importLocalBackupBtn.addEventListener("click", () => els.importLocalBackupFile.click());
   if (els.importLocalBackupFile) els.importLocalBackupFile.addEventListener("change", e => importLocalBackup(e.target.files[0]));
@@ -5669,6 +6856,8 @@ function bindEvents() {
   if (els.exportSnapshotsBtn) els.exportSnapshotsBtn.addEventListener("click", exportSnapshotSet); // v10.7.0
   if (els.exportStatsBtn) els.exportStatsBtn.addEventListener("click", exportStatsReport); // v10.7.0
   if (els.clearHistoryBtn) els.clearHistoryBtn.addEventListener("click", clearHistory);
+  // v11.1：浮窗内清空按钮与主表共用逻辑
+  if (els.dialogClearHistoryBtn) els.dialogClearHistoryBtn.addEventListener("click", clearHistory);
   if (els.saveQuoteBtn) els.saveQuoteBtn.addEventListener("click", saveCurrentQuote);
   if (els.openQuoteHistoryBtn) els.openQuoteHistoryBtn.addEventListener("click", openQuoteHistoryPanel);
   if (els.historyDetailLoadBtn) {
@@ -5722,29 +6911,38 @@ function bindEvents() {
     });
   });
 
-  // 临时毛利系数：输入时实时渲染报价卡片（不触发 onCalculate）
-  // v8.1：两个输入联动，任一变化都同时刷新临时系数卡片与邮费修改卡片
-  if (els.customCoeffInput) {
-    els.customCoeffInput.addEventListener("input", () => {
-      renderCustomCoeffCard();
-      renderShippingOverrideCards();
+  // v10.9.0：吊绳费用就地点击修改（事件委托绑定在持久容器上，innerHTML 重写不影响）
+  if (els.resRopePrice) {
+    els.resRopePrice.addEventListener("click", e => {
+      const span = e.target.closest(".rope-result-price");
+      if (span) { e.stopPropagation(); startRopePriceEdit(span); }
     });
   }
 
-  // 邮费快速修改：输入时实时渲染修改后报价卡片
-  if (els.shippingOverrideInput) {
-    els.shippingOverrideInput.addEventListener("input", () => {
+  // 临时毛利系数：输入时实时渲染报价卡片（不触发 onCalculate）
+  // v11.0：原「邮费修改卡片」联动已随独立面板移除，只刷新临时系数卡片
+  if (els.customCoeffInput) {
+    els.customCoeffInput.addEventListener("input", () => {
       renderCustomCoeffCard();
-      renderShippingOverrideCards();
     });
   }
-  // 清除邮费修改
-  if (els.shippingOverrideClear) {
-    els.shippingOverrideClear.addEventListener("click", () => {
-      if (els.shippingOverrideInput) els.shippingOverrideInput.value = "";
-      renderCustomCoeffCard();
-      renderShippingOverrideCards();
+
+  // v11.0：吊绳/邮费就地点击修改（事件委托绑定在持久容器上，innerHTML 重写不影响）
+  if (els.resRopePrice) {
+    els.resRopePrice.addEventListener("click", e => {
+      const span = e.target.closest(".rope-result-price");
+      if (span) { e.stopPropagation(); startRopePriceEdit(span); }
     });
+  }
+  if (els.resShippingPrice) {
+    els.resShippingPrice.addEventListener("click", e => {
+      const span = e.target.closest(".ship-result-price");
+      if (span) { e.stopPropagation(); startShippingPriceEdit(span); }
+    });
+  }
+  // v11.0：吊绳/邮费临时修改一键重置
+  if (els.resetRopeShipBtn) {
+    els.resetRopeShipBtn.addEventListener("click", resetRopeShipOverrides);
   }
 
   // 禁用所有 number 类型输入框的鼠标滚轮调整，防止误操作
@@ -5766,15 +6964,15 @@ function bindEvents() {
   }, { passive: false });
 }
 
-// -------------------- v10.6.0 默认数据上传（管理员，继承 9.8） --------------------
+// -------------------- v13.0 默认数据上传（管理员，沿用 9.8 /api/default 契约） --------------------
 // 管理员把当前本地配置上传为全用户共享的默认数据；其他账号下次登录自动应用
-// 说明：v10.6 移除 9.8 的「在线修改/报价表组」，故数据包不含 priceListGroups（后端按缺省忽略）
+// v13.0 回搬：账号体系回到 9.8 三级（admin/sales/guest），端点 /api/default，
+// 载荷 { data: {...} }，返回 version；权限判定 roleNum() >= 2（admin=3 通过、sales/guest 不通过）。
 function initDefaultDataUpload() {
   const btn = document.getElementById("uploadDefaultBtn");
   if (!btn) return;
   if (!window.KOKA) return; // 离线模式：不显示
-  const role = KOKA.user && KOKA.user.role;
-  if (role !== "admin") return; // 业务员 / 访客：不显示
+  if (!(KOKA.roleNum && KOKA.roleNum() >= 2)) return; // 业务员 / 访客：不显示
   btn.style.display = "";
   btn.addEventListener("click", async () => {
     if (!confirm("确认把当前所有配置（报价表/纸张/工艺/吊绳/邮费/客户等级）上传为全用户共享的默认数据？\n其他账号下次登录将自动采用该配置。")) return;
@@ -5782,6 +6980,7 @@ function initDefaultDataUpload() {
     try {
       const packet = {
         priceLists: PRICE_LISTS,
+        priceListGroups: PRICE_LIST_GROUPS,
         paperConfig: PAPER_CONFIG,
         craftConfig: CRAFT_CONFIG,
         ropeConfig: ROPE_CONFIG,
@@ -5792,12 +6991,15 @@ function initDefaultDataUpload() {
       const d = await r.json();
       if (d.ok) {
         localStorage.setItem("koka_default_version", String(d.version));
-        alert("已上传为默认数据 ✅\n版本时间：" + new Date(d.version).toLocaleString("zh-CN"));
+        if (KOKA.toast) KOKA.toast("已上传为默认数据 ✅");
+        else alert("已上传为默认数据 ✅");
       } else {
-        alert(d.message || "上传失败");
+        if (KOKA.toast) KOKA.toast(d.message || "上传失败", true);
+        else alert(d.message || "上传失败");
       }
     } catch (e) {
-      alert(e && e.message || "上传失败");
+      if (KOKA.toast) KOKA.toast((e && e.message) || "上传失败", true);
+      else alert((e && e.message) || "上传失败");
     } finally {
       btn.disabled = false;
     }
@@ -5807,6 +7009,17 @@ function initDefaultDataUpload() {
 // -------------------- 启动 --------------------
 // 兜底：任何 init 步骤失败不影响其他步骤，错误会显示在控制台
 (function safeInit() {
+  // v12.5：吊绳/邮费「指定报价表」字段容错（空 = 全局生效；旧数据零迁移成本）
+  try {
+    ROPE_CONFIG.forEach(r => { if (typeof r.targetPriceListId === "undefined") r.targetPriceListId = ""; });
+    SHIPPING_CONFIG.forEach(s => { if (typeof s.targetPriceListId === "undefined") s.targetPriceListId = ""; });
+  } catch (e) { /* 忽略 */ }
+  // v11.1/v11.2：报价设置/数据管理独立菜单的显示控制——
+  // file:// 本地版始终隐藏；web 端由 applyUiLayoutMode 按「设备架构 + 是否移动端」决定
+  // （此处先做一次初始判定，applyUiLayoutMode 会按垂直/扁平模式再次同步）
+  if (!window.KOKA) {
+    document.querySelectorAll(".nav-btn.web-only").forEach(btn => { btn.hidden = true; });
+  }
   const steps = [
     ["initOptions", initOptions],
     ["updateDefaultTierOptions", updateDefaultTierOptions],
@@ -5836,6 +7049,14 @@ function initDefaultDataUpload() {
   // 应用 UI 架构模式（v9.8：移动端自动垂直纵深式，桌面/iPad 扁平化宽泛式）
   try { applyUiLayoutMode(); }
   catch (e) { console.error("[init] UI 架构模式失败:", e); }
+
+  // v11.4：应用已保存的主题色（默认经典蓝）
+  try { initThemeColor(); }
+  catch (e) { console.error("[init] 主题色失败:", e); }
+
+  // v11.5（G2）：应用已保存的表格密度（默认标准）
+  try { initTableDensity(); }
+  catch (e) { console.error("[init] 表格密度失败:", e); }
 
   // 应用个性化字号（v10.1）+ 吊绳折叠摘要
   try { applyFontScale(); updateRopeFoldSummary(); }

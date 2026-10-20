@@ -84,13 +84,16 @@
   }
 
   // ---------- 角色页面控制：访客只保留「智能报价计算器」 ----------
+  // v13.0 回搬适配：v12.9 采用 5 页布局（计算器 / 报价表组查询 / 个人主页 / 数据管理 / 报价设置），
+  // 访客需隐藏除计算器外的全部导航与页面
   function applyRoleGating() {
     const role = KOKA.user && KOKA.user.role;
     if (role !== 'guest') return;
-    document.querySelectorAll('.nav-btn[data-page="table"], .nav-btn[data-page="profile"]').forEach(b => { b.style.display = 'none'; });
-    ['page-table', 'page-profile'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.style.display = 'none';
+    document.querySelectorAll('.nav-btn[data-page]').forEach(b => {
+      if (b.dataset.page !== 'calculator') b.style.display = 'none';
+    });
+    document.querySelectorAll('.page').forEach(el => {
+      if (el.id !== 'page-calculator') el.style.display = 'none';
     });
     const active = document.querySelector('.page.active');
     if (active && active.id !== 'page-calculator') {

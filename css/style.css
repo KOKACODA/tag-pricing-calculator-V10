@@ -1,4 +1,4 @@
-/* KOKALabel报价系统 v10.7.0 - 样式表 */
+/* KOKALabel报价系统 v13.0 - 样式表 */
 
 /* ===================== 全局变量与重置 ===================== */
     :root {
@@ -758,6 +758,69 @@
       color: var(--brand);
     }
 
+    /* v10.9.0/v11.0：吊绳与邮费费用就地点击修改——可点击态 + 临时覆盖高亮 */
+    .rope-result-price[data-rope-edit],
+    .ship-result-price[data-ship-edit] {
+      cursor: pointer;
+      border-bottom: 1px dashed currentColor;
+      padding: 0 2px;
+      transition: background-color .15s;
+    }
+    .rope-result-price[data-rope-edit]:hover,
+    .ship-result-price[data-ship-edit]:hover {
+      background: rgba(15, 111, 196, 0.10);
+      border-radius: 4px;
+    }
+    .rope-result-price.rope-price-overridden,
+    .ship-result-price.ship-price-overridden {
+      color: var(--danger, #dc2626);
+      background: rgba(220, 38, 38, 0.08);
+      border-radius: 4px;
+      padding: 0 4px;
+    }
+    .rope-price-input {
+      width: 96px;
+      padding: 1px 6px;
+      border: 1px solid var(--brand);
+      border-radius: 6px;
+      font: inherit;
+      font-weight: 700;
+      color: var(--text, #1f2937);
+      background: #fff;
+      outline: none;
+    }
+    .rope-price-input:focus {
+      box-shadow: 0 0 0 2px rgba(15, 111, 196, 0.15);
+    }
+
+    /* v11.0：吊绳/邮费临时修改一键重置（结果框末端，仅覆盖时显示） */
+    .result-reset-row {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed var(--border, #e2e8f0);
+    }
+    .result-reset-btn {
+      padding: 4px 12px;
+      font-size: 12px;
+      color: var(--danger, #dc2626);
+      background: #fff;
+      border: 1px solid currentColor;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: background-color .15s;
+    }
+    .result-reset-btn:hover {
+      background: rgba(220, 38, 38, 0.08);
+    }
+
+    /* v11.0：临时毛利系数标题与提示同行（hint 嵌在 label 内，禁止换行分离） */
+    .custom-coeff-label .custom-coeff-hint {
+      display: inline;
+      white-space: nowrap;
+    }
+
     .rope-result-formula {
       color: var(--text-secondary);
       font-weight: 500;
@@ -1159,6 +1222,36 @@
       color: var(--text-secondary);
       white-space: nowrap;
     }
+    /* v11.2：快速切换档位折叠面板（默认折叠，标题行可点击） */
+    .tier-quick-head {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+      font: inherit;
+      transition: background-color 0.15s;
+    }
+    .tier-quick-head:hover {
+      background: rgba(15, 111, 196, 0.08);
+    }
+    .tier-quick-arrow {
+      font-size: 11px;
+      color: var(--text-secondary);
+      transition: transform 0.15s;
+    }
+    .tier-quick-switch.open .tier-quick-arrow {
+      transform: rotate(180deg);
+    }
+    .tier-quick-switch.collapsed #tierQuickBtns {
+      display: none !important;
+    }
+    .tier-quick-switch.open #tierQuickBtns {
+      display: flex;
+    }
     .tier-quick-btns {
       display: flex;
       flex-wrap: wrap;
@@ -1183,6 +1276,79 @@
       border-color: var(--brand);
       color: #fff;
       font-weight: 600;
+    }
+
+    /* v11.6：卡片标题下的说明行（页头层次统一） */
+    .card-desc {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin: -6px 0 14px;
+    }
+
+    /* v11.4：报价表组查询分页子导航（报价表/吊绳价格/邮费价格） */
+    .table-view-tabs {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 4px 0 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .table-view-tab {
+      padding: 6px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-secondary);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .table-view-tab:hover {
+      border-color: var(--brand);
+      color: var(--brand);
+    }
+    .table-view-tab.active {
+      background: var(--brand);
+      border-color: var(--brand);
+      color: #fff;
+    }
+
+    /* v11.4：个性化主题色色块 */
+    .theme-color-group {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 6px 0 4px;
+    }
+    .theme-swatch {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 2px solid #fff;
+      box-shadow: 0 0 0 1px var(--border);
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+    .theme-swatch:hover {
+      transform: scale(1.08);
+    }
+    .theme-swatch.active {
+      box-shadow: 0 0 0 2px var(--brand);
+    }
+    .theme-swatch.active::after {
+      content: "✓";
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 800;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.4);
     }
 
     /* ===================== 报价区分标签 ===================== */
@@ -2020,6 +2186,12 @@
       font-size: 12px;
     }
 
+    /* v11.2：全局 dialog 居中——全局 * reset 的 margin:0 覆盖了 UA 的 margin:auto，
+       导致所有 dialog 贴左上角显示 */
+    dialog {
+      margin: auto;
+    }
+
     .history-dialog {
       width: min(760px, calc(100vw - 28px));
       max-width: 760px;
@@ -2030,6 +2202,19 @@
       border-radius: 16px;
       background: transparent;
       box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    }
+
+    /* v11.2：报价历史列表浮窗——加大尺寸 + 内容区滚动，显示完整不局促 */
+    #historyListDialog {
+      width: min(1040px, calc(100vw - 24px));
+      max-width: none;
+      max-height: calc(100vh - 32px);
+    }
+    #historyListDialog .history-dialog-content {
+      overflow: auto;
+    }
+    #historyListDialog .history-dialog-footer {
+      justify-content: space-between;
     }
 
     .history-dialog::backdrop {
@@ -2236,9 +2421,11 @@
       align-items: start;
     }
 
+    /* v12.6：取消统计区限高——原 520px 会把「利润分布」等卡片内容裁切（用户反馈显示不全） */
     .stats-snapshot-layout .stats-content {
-      max-height: 520px;
-      overflow-y: auto;
+      max-height: none;
+      overflow-y: visible;
+      min-width: 0;
     }
 
     .stats-box-header {
@@ -2249,10 +2436,12 @@
       margin-bottom: 12px;
     }
 
-    @media (max-width: 920px) {
+    /* v12.6：断点由 920 提升到 1200——中窄屏下两栏会挤压统计卡（「热销尺寸」标题竖排） */
+    @media (max-width: 1200px) {
       .stats-snapshot-layout {
         grid-template-columns: 1fr;
       }
+      .snapshot-box { min-width: 0; }
     }
 
     .stat-panel {
@@ -2268,17 +2457,23 @@
       justify-content: space-between;
       gap: 12px;
       margin-bottom: 12px;
+      flex-wrap: wrap; /* v12.6：空间不足时副标题换行，而非把标题压成竖排 */
+      min-width: 0;
     }
 
     .stat-panel-title {
       font-size: 15px;
       font-weight: 700;
       color: var(--brand-dark);
+      white-space: nowrap; /* v12.6：标题（如「热销尺寸」）永不折行/竖排 */
+      flex-shrink: 0;
     }
 
     .stat-panel-sub {
       font-size: 12px;
       color: var(--text-secondary);
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
 
     .stat-summary {
@@ -2578,24 +2773,27 @@
       padding-bottom: 8px;
     }
 
+    /* v11.6：数据管理 tab 统一为胶囊风格（与报价表组查询子导航 .table-view-tab 一致） */
     .tab {
-      padding: 8px 14px;
-      border: none;
-      background: transparent;
+      padding: 6px 16px;
+      border: 1px solid var(--border);
+      background: #fff;
       color: var(--text-secondary);
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      border-radius: 6px;
+      border-radius: 999px;
+      transition: all 0.15s;
     }
 
     .tab:hover {
-      background: var(--brand-light);
+      border-color: var(--brand);
       color: var(--brand);
     }
 
     .tab.active {
       background: var(--brand);
+      border-color: var(--brand);
       color: #fff;
     }
 
@@ -3024,7 +3222,6 @@
     .tab {
       padding: clamp(0.375rem, 2vw, 0.5rem) clamp(0.625rem, 3vw, 0.875rem);
       font-size: clamp(0.75rem, 3.5vw, 0.875rem);
-      border-radius: 0.375rem;
       white-space: nowrap;
       flex-shrink: 0;
     }
@@ -3189,6 +3386,34 @@
       }
     }
 
+    /* ===================== v10.8.0 报价表备注（独立框体，位于切换器下方） ===================== */
+    .price-list-note {
+      margin-bottom: clamp(0.75rem, 3vw, 1rem);
+      padding: clamp(0.625rem, 3vw, 0.75rem) clamp(0.75rem, 4vw, 1rem);
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-left: 3px solid #f59e0b;
+      border-radius: clamp(0.5rem, 2vw, 0.625rem);
+    }
+
+    /* hidden 属性优先于上面的 display 缺失，显式声明防止被覆盖 */
+    .price-list-note[hidden] { display: none; }
+
+    .price-list-note-title {
+      font-size: clamp(0.75rem, 3.5vw, 0.8125rem);
+      font-weight: 700;
+      color: #92400e;
+      margin-bottom: 0.375rem;
+    }
+
+    .price-list-note-body {
+      font-size: clamp(0.75rem, 3.5vw, 0.875rem);
+      line-height: 1.7;
+      color: #78350f;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
 /* v9.4 角色徽章 / 账号工具条 / 管理按钮 */
 .koka-role { display: inline-block; font-size: 11px; padding: 1px 8px; border-radius: 10px; font-weight: 600; vertical-align: middle; margin-left: 4px; }
 .koka-role.superadmin { background: #fef3c7; color: #b45309; }
@@ -3247,7 +3472,8 @@
 /* --- 主区：宽幅化（替代原 960px 居中 + 顶部导航补偿） --- */
 .pages { margin-left: 200px; max-width: none; padding-top: 0; }
 .pages > .page { padding: 14px 16px 28px; }
-#page-table, #page-profile { max-width: 1120px; margin: 0 auto; }
+/* v10.9.0 UI 修复：报价表组查询/个人主页内容占满主区宽度（原 1120px 居中在宽屏下右侧大片空白） */
+#page-table, #page-profile, #page-data, #page-settings { max-width: none; margin: 0; }
 
 /* --- 计算器两栏布局 --- */
 .calc-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(340px, 1fr); gap: 14px; align-items: start; }
@@ -3783,3 +4009,490 @@ body.ui-vertical .personalize-panel { left: 12px; top: 120px; bottom: auto; }
   .sidenav-brand { padding: 8px 12px 4px; }
   .sidenav-brand-title, .sidenav-brand-name { font-size: 15px; }
 }
+
+    /* ===================== v11.7：四页一屏化布局（≥1101px 宽屏；窄屏回退单列） ===================== */
+    /* 数据管理页：数据管理卡（左）+ 快照与统计报表卡（右）同框并排 */
+    @media (min-width: 1101px) {
+      #page-data.active {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+      /* 历史报价记录固定约 5 条，区域内滚动（新建的在上；每条含标题+编号两行文本） */
+      #page-data .history-table-wrap {
+        max-height: 300px;
+        overflow-y: auto;
+      }
+      #page-data .history-table {
+        margin-top: 0;
+      }
+
+      /* 报价设置页：报价设置卡（左，设置行两列压缩高度）+ 计算规则说明卡（右） */
+      #page-settings.active {
+        display: grid;
+        grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+        gap: 14px;
+        align-items: start;
+      }
+      #page-settings .profile-section {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 0 28px;
+        align-content: start;
+      }
+      #page-settings .profile-section > .section-title,
+      #page-settings .profile-section > .btn-group,
+      #page-settings #levelSettings {
+        grid-column: 1 / -1;
+      }
+      #page-settings .setting-row { padding: 9px 0; }
+      #page-settings .setting-row + .setting-row { border-top: none; }
+
+      /* 报价表组查询：表格行距压缩 + 区块间距收紧，一屏容纳矩阵/工艺/系数/批量直接 */
+      #page-table .data-table th,
+      #page-table .data-table td { padding: 7px 10px; }
+      #page-table .data-table { margin-top: 8px; }
+      #page-table .table-wrap[style*="margin-top:20px"],
+      #page-table .table-wrap[style*="margin-top: 20px"] { margin-top: 14px !important; }
+
+      /* 个人主页：双列网格（账号/hero 全宽，其余两两并排） */
+      #page-profile.active {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 14px;
+        align-items: start;
+      }
+      #page-profile > .profile-hero { grid-column: 1 / -1; }
+    }
+
+    /* ===================== v11.8：Ant Design 风格设计 token 层 + 组件视觉对齐 =====================
+       说明：项目铁律为「无框架、无构建、双击可用」，故不引入 antd/React 依赖，
+       而是对齐 antd 5 的设计 token 语义（colorPrimary/状态色/圆角/表格规范）用原生 CSS 变量实现。 */
+    :root {
+      /* 主色三态（默认跟随经典蓝；主题色切换由 applyThemeColor 动态接管） */
+      --ant-primary: var(--brand);
+      --ant-primary-hover: var(--brand-dark);
+      --ant-primary-active: var(--brand-dark);
+      --ant-primary-bg: var(--brand-light);
+      /* 状态色（antd 语义） */
+      --ant-success: #52c41a;
+      --ant-warning: #faad14;
+      --ant-error: #ff4d4f;
+      --ant-info: var(--brand);
+      /* 组件规范 */
+      --ant-radius: 8px;
+      --ant-table-header-bg: #fafafa;
+      --ant-row-hover: #fafafa;
+      --ant-split: #f0f0f0;
+      /* 表格密度（G2：三档，body class 控制，默认 regular） */
+      --density-pad-y: 10px;
+      --density-pad-x: 12px;
+    }
+    body.table-density-compact { --density-pad-y: 5px; --density-pad-x: 8px; }
+    body.table-density-relaxed { --density-pad-y: 14px; --density-pad-x: 14px; }
+
+    /* —— G3 sticky 表头 + 表格规范（antd：表头 #fafafa、行 hover、分割线 #f0f0f0）—— */
+    .table-wrap thead th,
+    #page-data .data-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: var(--ant-table-header-bg);
+      border-bottom: 2px solid var(--ant-split);
+    }
+    .table-wrap tbody tr:hover td,
+    #page-data .data-table tbody tr:hover td {
+      background: var(--ant-row-hover);
+    }
+    .data-table th,
+    .data-table td {
+      padding: var(--density-pad-y) var(--density-pad-x);
+    }
+
+    /* —— G4 数字右对齐 + 等宽数字（价格/数量列）—— */
+    #priceTable td:not(:first-child):not(:nth-child(2)),
+    #craftTable td:not(:first-child),
+    #directCoeffTable td:not(:first-child),
+    #batchDirectTable td:not(:first-child),
+    #ropePriceTable td:not(:first-child),
+    #shippingPriceTable td:not(:first-child),
+    #historyTable td:nth-child(5),
+    #historyTable td:nth-child(6) {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    #priceTable th:not(:first-child):not(:nth-child(2)),
+    #craftTable th:not(:first-child),
+    #directCoeffTable th:not(:first-child),
+    #batchDirectTable th:not(:first-child),
+    #ropePriceTable th:not(:first-child),
+    #shippingPriceTable th:not(:first-child) {
+      text-align: right;
+    }
+
+    /* —— G5 统一空状态（antd Empty 风格）—— */
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 32px 20px;
+      color: var(--text-secondary);
+      font-size: 13px;
+    }
+    .empty-state::before {
+      content: "📭";
+      font-size: 28px;
+      opacity: 0.55;
+    }
+
+    /* —— T-A4 就地编辑态高亮（antd 聚焦描边）—— */
+    td.cell-editing {
+      outline: 2px solid var(--ant-primary);
+      outline-offset: -2px;
+      background: #fff;
+      border-radius: 4px;
+    }
+
+    /* —— T-A2 渐进披露：系数/批量直接表折叠（默认收起）—— */
+    .fold-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 8px 12px;
+      margin: 0;
+      background: var(--ant-primary-bg);
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--brand-dark);
+      font-family: inherit;
+    }
+    .fold-head:hover { filter: brightness(0.98); }
+    .fold-head .fold-arrow { transition: transform 0.2s; font-size: 12px; }
+    .fold-box.open .fold-head .fold-arrow { transform: rotate(180deg); }
+    .fold-box .fold-body { display: none; }
+    .fold-box.open .fold-body { display: block; }
+    .fold-box.open { margin-top: 14px; }
+
+    /* —— D-A3 在线修改宽内容横向滚动适配 —— */
+    #onlineManagerRoot { overflow-x: auto; }
+
+    /* —— N6 子导航移动端缩放 —— */
+    @media (max-width: 720px) {
+      .table-view-tab { padding: 5px 12px; font-size: 12px; }
+      .table-view-tabs { gap: 5px; }
+    }
+
+    /* —— S-A3 规则卡在双栏右栏内的紧凑化 —— */
+    #page-settings .rule-block { padding: 10px 12px; }
+
+    /* —— v11.5（P-A1）：hero 内账号行（账号信息并入品牌头，去重复层次）—— */
+    .hero-account-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      width: 100%;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed var(--border);
+      font-size: 13px;
+      color: var(--text);
+    }
+    .hero-account-ops {
+      margin-left: auto;
+      display: inline-flex;
+      gap: 8px;
+    }
+    .hero-account-ops button {
+      padding: 5px 12px;
+      border: 1px solid #cbd5e1;
+      background: #fff;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .hero-account-ops button:hover {
+      border-color: var(--brand);
+      color: var(--brand);
+    }
+    .hero-account-line .koka-role { margin-left: 4px; }
+
+    /* ===================== v11.9：布局根修复（.pages 撑满）+ 一屏适配 =====================
+       根因（真实浏览器实测）：.app-shell 为 flex 容器、.sidenav 为 fixed（脱离文档流），
+       .pages 作为唯一 flex 子项且 width:auto → 按内容固有宽收缩适应（shrink-to-fit）：
+       1920 视口下吊绳/邮费视图仅 575px（可用 1720px），右侧大面积空白。
+       此前反复调 max-width 均未触及。行业标准解法：flex 子项显式 flex:1 1 auto + min-width:0。 */
+    .app-shell > .pages,
+    .pages {
+      flex: 1 1 auto;
+      min-width: 0;
+    }
+
+    @media (min-width: 1101px) {
+      /* 数据管理：历史报价固定 9 条（表头 40 + 9×52），超出区域内部滚动；双栏等高 */
+      #page-data .history-table-wrap { max-height: 508px; }
+      #page-data.active { align-items: stretch; }
+
+      /* 个人主页：双列等高（消除参差错落） */
+      #page-profile.active { align-items: stretch; }
+    }
+
+    /* v11.9：查询页长内容视图限高——页面保持一屏，表格区域内部滚动（不缩小字体）；
+       sticky 表头在滚动容器内继续生效；分页条/备注保持常驻可见（在视图容器之外）。
+       注：rope/shipping 视图容器即 #ropePriceWrap/#shippingPriceWrap（无 tview-* id）。 */
+    @media (min-width: 1101px) {
+      #tview-quote,
+      #ropePriceWrap,
+      #shippingPriceWrap {
+        max-height: calc(100vh - 350px);
+        overflow-y: auto;
+        overflow-x: auto;
+      }
+    }
+
+    /* v11.9：报价设置页一屏化——分组折叠（渐进披露）+ 间距压缩。
+       注：曾试三列布局，实测列窄导致 label 换行反而更高且字挤，已回退两列。 */
+    @media (min-width: 1101px) {
+      #page-settings .profile-section { padding: 12px 0 0; }
+      #page-settings .card-desc { margin: -4px 0 10px; }
+      /* 可折叠分组（仅带 data-foldable 的分组生效）：标题行加箭头，收起后隐藏组内设置行 */
+      #page-settings .profile-section[data-foldable] > .setting-row { display: none; }
+      #page-settings .profile-section[data-foldable].open > .setting-row { display: flex; }
+      #page-settings .foldable-title {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        user-select: none;
+      }
+      #page-settings .foldable-title .fold-arrow { transition: transform 0.2s; font-size: 12px; color: var(--text-secondary); }
+      #page-settings .profile-section.open .foldable-title .fold-arrow { transform: rotate(180deg); }
+    }
+
+    /* v11.9.1：数据管理页比例优化（实测：历史行高 63px、表头 42px）
+       - 历史框体固定 8 行高度（566px，height 而非 max-height）：
+         记录不足 8 条时框体高度也保持稳定，两栏比例不再随数据量抖动；
+       - 左栏加宽 1.5fr（原 1.25fr）：历史表 7 列不再横向滚动（实测 900 vs 882px 溢出）。 */
+    @media (min-width: 1101px) {
+      #page-data.active { grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+      #page-data .history-table-wrap { height: 566px; max-height: none; overflow-y: auto; }
+    }
+
+    /* v12.1：恢复类长文案按钮防溢出/换行（说明文字长时会挤压按钮容器导致换行） */
+    #resetAllSettingsBtn,
+    #resetEverythingBtn {
+      white-space: nowrap;
+    }
+    #page-profile .setting-control { flex-shrink: 0; }
+    @media (max-width: 1400px) {
+      /* 中窄屏：说明控件排列改为上下两行，避免按钮被挤压 */
+      #page-profile .setting-row { flex-wrap: wrap; gap: 8px; }
+      #page-profile .setting-control { width: 100%; justify-content: flex-start; }
+    }
+
+    /* v12.2：设置行防挤压——label 永不竖排
+       根因：.setting-info 是 flex:1（可压到 0），而「默认纸张材质」等行的下拉选项文字很长、
+       控件宽度大，把说明区压成单字宽（label 竖排）。修复：允许换行 + 说明区最小宽度保障。 */
+    #page-settings .setting-row {
+      flex-wrap: wrap;
+      gap: 6px 16px;
+    }
+    #page-settings .setting-info {
+      flex: 1 1 200px;
+      min-width: 170px;
+    }
+    #page-settings .setting-control {
+      flex: 0 1 auto;
+      max-width: 100%;
+    }
+    #page-settings .setting-control select {
+      max-width: 100%;
+    }
+
+    /* ===================== v12.3：折扣就地编辑 + 折扣价提示 + 批量直接报价开关 ===================== */
+    .discount-edit {
+      cursor: pointer;
+      color: var(--brand);
+      font-weight: 600;
+      border-bottom: 1px dashed var(--brand);
+      padding: 0 1px;
+    }
+    .discount-edit:hover { background: var(--brand-light); border-radius: 3px; }
+    .discount-edit.discount-overridden {
+      background: var(--ant-warning);
+      color: #fff;
+      border-bottom: none;
+      border-radius: 4px;
+      padding: 0 5px;
+    }
+    .discount-edit .discount-input {
+      width: 68px;
+      padding: 1px 4px;
+      font-size: 13px;
+      border: 1px solid var(--brand);
+      border-radius: 4px;
+    }
+    .discount-tag {
+      margin-left: 6px;
+      padding: 1px 8px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+      background: var(--ant-warning);
+      border-radius: 999px;
+      vertical-align: middle;
+      white-space: nowrap;
+    }
+    .sheet-batchdirect-hint {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .sheet-batchdirect-hint.is-off {
+      background: #f8fafc;
+      border-color: var(--border);
+      border-left-color: var(--text-secondary);
+    }
+    .sheet-batchdirect-hint.is-off span { color: var(--text-secondary); }
+    .bd-toggle-btn {
+      margin-left: auto;
+      padding: 2px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--danger);
+      background: #fff;
+      border: 1px solid var(--danger);
+      border-radius: 999px;
+      cursor: pointer;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .bd-toggle-btn:hover { background: var(--danger-light); }
+    .bd-toggle-btn.is-on {
+      color: #fff;
+      background: var(--brand);
+      border-color: var(--brand);
+    }
+
+    /* v12.4：工艺费就地编辑输入框（与折扣编辑同风格） */
+    .craft-edit .craft-input {
+      width: 84px;
+      padding: 1px 4px;
+      font-size: 13px;
+      border: 1px solid var(--brand);
+      border-radius: 4px;
+    }
+
+    /* ===================== v12.5：指定报价表标签/关闭按钮/退出登录 ===================== */
+    .scope-tag { display: inline-block; padding: 1px 8px; font-size: 11px; font-weight: 600; border-radius: 999px; white-space: nowrap; }
+    .scope-tag.global { color: var(--text-secondary); background: #f1f5f9; }
+    .scope-tag.scoped { color: #fff; background: var(--brand); }
+    #ropePriceTable tr.row-scoped td, #shippingPriceTable tr.row-scoped td { background: var(--brand-light); }
+    .scope-cell { text-align: center; }
+    .hero-account-ops button.logout-btn { color: var(--danger); border-color: var(--danger); }
+    .hero-account-ops button.logout-btn:hover { background: var(--danger-light); }
+
+    /* v12.6：快速切档——该档位邮费为手动输入值时红框高亮 */
+    .tier-quick-btn.manual-shipping {
+      border-color: var(--danger) !important;
+      color: var(--danger);
+      box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.18);
+    }
+    .tier-quick-btn.manual-shipping.active {
+      background: var(--danger);
+      color: #fff;
+    }
+
+    /* v12.7：修复——paginationBar 等元素带 inline display（renderPagination 设 display:flex），
+       会覆盖 hidden 属性，导致切到吊绳/邮费视图时仍显示纸张分页条（"第 2/33 张"）。
+       用 !important 让 hidden 属性优先于 inline display，保证子视图切换时正确隐藏。 */
+    #page-table [data-tview][hidden] { display: none !important; }
+
+    /* ===================== v12.7：在线制作纸张报价表（在线模板） ===================== */
+    .online-paper-editor {
+      margin-top: 10px;
+      padding: 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--ant-radius);
+      background: #fff;
+    }
+    .online-paper-toolbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 12px;
+    }
+    .online-paper-toolbar select {
+      min-width: 220px;
+      max-width: 100%;
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+    .online-field-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 10px 16px;
+    }
+    .online-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      min-width: 0;
+    }
+    .online-field input,
+    .online-field select {
+      padding: 6px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+      color: var(--text);
+      width: 100%;
+      box-sizing: border-box;
+    }
+    .online-field-note { justify-content: flex-end; }
+    .online-field-note em { font-style: normal; color: var(--text-secondary); font-size: 12px; }
+    .online-sub-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--brand-dark);
+      margin: 0 0 8px;
+    }
+    .online-sub-title span { font-size: 12px; font-weight: 400; color: var(--text-secondary); }
+    .online-craft-name { position: relative; padding-right: 26px !important; }
+    .online-craft-name .row-del {
+      position: absolute;
+      right: 6px;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+
+    /* ===================== v12.8：档位缺价/手动邮费红字高亮 + 账号管理卡铺满 ===================== */
+    .tier-quick-btn.manual-shipping,
+    .tier-quick-btn.missing-pricing {
+      color: var(--danger) !important;
+      border-color: var(--danger) !important;
+      font-weight: 700;
+    }
+    .tier-quick-btn.manual-shipping.active,
+    .tier-quick-btn.missing-pricing.active {
+      background: var(--danger);
+      color: #fff !important;
+    }
+    /* 批量档位下拉中：无定价 / 手动邮费档位红字（option color 在 Chrome/Edge 生效） */
+    #tier option.tier-flag { color: #dc2626; font-weight: 600; }
+    /* 账号管理（超级管理员）卡片：个人主页双列下向右铺满整行 */
+    @media (min-width: 1101px) {
+      #page-profile > #accountAdminBox { grid-column: 1 / -1; }
+    }

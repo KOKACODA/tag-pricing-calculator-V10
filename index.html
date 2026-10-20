@@ -7,23 +7,25 @@
   <!-- P0 安全：CSP 策略（v7.9：SheetJS 已本地化，script-src 仅允许 'self'，离线双击打开亦可用） -->
   <!-- v10.6.0：default-src/connect-src 放行 blob:，修复网页端 XLSX.writeFile 导出 Excel 被拦 -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self' blob:; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' blob:;">
-  <title>KOKALabel报价系统 v10.9.0</title>
-  <!-- v10.6.0：品牌图标保持 KOKA（assets/ 下的菱形铅笔标），不使用同事版的亲成图标 -->
-  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=10.8.0">
-  <link rel="icon" type="image/png" href="assets/favicon.png?v=10.8.0">
-  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=10.8.0">
-  <link rel="stylesheet" href="css/style.css?v=10.8.0">
+  <title>KOKALabel报价系统 v13.0</title>
+  <!-- v13.0：回搬同事 v12.9 全部功能并清洗企业定制（品牌/图标）；图标沿用 KOKA 全套，移除企业 svg 图标 -->
+  <link rel="icon" type="image/x-icon" href="assets/favicon.ico?v=13.0">
+  <link rel="icon" type="image/png" href="assets/favicon.png?v=13.0">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png?v=13.0">
+  <link rel="stylesheet" href="css/style.css?v=13.0">
   <!-- v9.3 账号访问控制：http 部署时强制登录（file:// 本地离线不启用） -->
-  <script src="js/auth.js?v=10.8.0"></script>
+  <script src="js/auth.js?v=13.0"></script>
 </head>
 <body>
   <!-- v10.6.0：app-shell 包裹 = 左侧导航 + 主区（扁平化宽泛式架构） -->
   <div class="app-shell">
   <!-- 左侧导航栏（v10.6.0：导航从顶部移至左侧竖栏） -->
   <nav class="sidenav">
-    <div class="sidenav-brand">KOKALabel<span class="sidenav-brand-sub">报价系统</span></div>
+    <div class="sidenav-brand">KOKA<span class="sidenav-brand-sub">报价系统</span></div>
     <div class="sidenav-menu">
       <button class="nav-btn active" data-page="calculator">智能报价计算器</button>
+      <button class="nav-btn web-only" data-page="data" hidden>数据管理</button>
+      <button class="nav-btn web-only" data-page="settings" hidden>报价设置</button>
       <button class="nav-btn" data-page="table">报价表组查询</button>
       <button class="nav-btn" data-page="profile">个人主页</button>
     </div>
@@ -45,14 +47,33 @@
         <button type="button" data-scale="1.3">特大</button>
       </div>
       <div class="font-scale-custom">
-        <input type="number" id="fontScaleInput" min="50" max="200" step="1" placeholder="自定义" aria-label="自定义缩放百分比">
-        <span class="font-scale-pct">%</span>
+        <input type="number" id="fontScaleInput" min="8" max="32" step="1" placeholder="如 18" aria-label="手动输入字号（像素）">
+        <span class="font-scale-pct">px</span>
         <button type="button" class="font-scale-apply" id="fontScaleApply">应用</button>
       </div>
-      <div class="personalize-current" id="fontScaleCurrent">当前：100%</div>
-      <div class="personalize-defaults" id="fontScaleDefaults">系统默认字号：16px</div>
+      <div class="personalize-current" id="fontScaleCurrent">当前字号：16px（100%）</div>
+      <div class="personalize-defaults" id="fontScaleDefaults">系统默认字号：16px（100%）</div>
+      <!-- v11.5（G2）：表格密度三档（紧凑/标准/宽松，本机生效） -->
+      <div class="personalize-label">表格密度</div>
+      <div class="density-group" id="densityGroup">
+        <button type="button" class="density-btn" data-density="compact">紧凑</button>
+        <button type="button" class="density-btn active" data-density="regular">标准</button>
+        <button type="button" class="density-btn" data-density="relaxed">宽松</button>
+      </div>
+      <!-- v11.4：主题色（常见配色，本机生效） -->
+      <div class="personalize-label">主题色</div>
+      <div class="theme-color-group" id="themeColorGroup">
+        <button type="button" class="theme-swatch" data-theme="classic" title="经典蓝（默认）" style="background:linear-gradient(135deg,#0f6fc4,#0a4f8a);"></button>
+        <button type="button" class="theme-swatch" data-theme="ocean" title="深海蓝" style="background:linear-gradient(135deg,#2563eb,#1e40af);"></button>
+        <button type="button" class="theme-swatch" data-theme="emerald" title="翡翠绿" style="background:linear-gradient(135deg,#059669,#047857);"></button>
+        <button type="button" class="theme-swatch" data-theme="violet" title="紫罗兰" style="background:linear-gradient(135deg,#7c3aed,#5b21b6);"></button>
+        <button type="button" class="theme-swatch" data-theme="coral" title="珊瑚红" style="background:linear-gradient(135deg,#dc2626,#991b1b);"></button>
+        <button type="button" class="theme-swatch" data-theme="sunset" title="日落橙" style="background:linear-gradient(135deg,#ea580c,#c2410c);"></button>
+        <button type="button" class="theme-swatch" data-theme="teal" title="青碧" style="background:linear-gradient(135deg,#0891b2,#0e7490);"></button>
+      </div>
+      <div class="personalize-note">主题色仅调整本机显示，不影响其他设备与账号</div>
       <button type="button" class="personalize-reset" id="fontScaleReset">恢复默认</button>
-      <div class="personalize-note">可输入 50~200 的百分比；仅调整本机显示，不影响其他设备与账号</div>
+      <div class="personalize-note">可直接输入 8~32 的字号（px）；仅调整本机显示，不影响其他设备与账号</div>
     </div>
   </div>
 
@@ -396,12 +417,12 @@
             <span class="result-value" id="resCraftPrice">-</span>
           </div>
           <div class="result-row">
-            <span class="result-label">吊绳费用</span>
-            <span class="result-value" id="resRopePrice">-</span>
+            <span class="result-label" title="吊牌本身成本：纸张折后价合计（已含工艺费），不含吊绳与邮费">吊牌成本合计</span>
+            <span class="result-value" id="resTagCost">-</span>
           </div>
           <div class="result-row">
-            <span class="result-label">吊牌成本合计</span>
-            <span class="result-value" id="resTagCost">-</span>
+            <span class="result-label">吊绳费用</span>
+            <span class="result-value" id="resRopePrice">-</span>
           </div>
           <div class="result-row">
             <span class="result-label">邮费</span>
@@ -413,6 +434,11 @@
           </div>
           <div id="resWarnings" class="result-warnings" style="display:none;"></div>
 
+          <!-- v11.0：吊绳/邮费临时修改重置（仅存在覆盖时显示） -->
+          <div class="result-reset-row" id="resultResetRow" style="display:none;">
+            <button type="button" id="resetRopeShipBtn" class="result-reset-btn" title="重置全部临时修改：吊绳费用 / 邮费 / 折扣 / 工艺费 / 批量直接报价开关">↺ 重置临时修改</button>
+          </div>
+
           <!-- 面积系数提示（超 10000 时显示） -->
           <div id="areaCoefficientRow" class="area-coeff-row" style="display:none;">
             <div>
@@ -422,9 +448,12 @@
             <span class="coeff-desc" id="resAreaCoeffDesc"></span>
           </div>
 
-          <!-- 批量档位快速切换 -->
-          <div id="tierQuickSwitch" class="tier-quick-switch" style="display:none;">
-            <span class="tier-quick-label">快速切换档位：</span>
+          <!-- 批量档位快速切换（v11.2：折叠面板，默认折叠） -->
+          <div id="tierQuickSwitch" class="tier-quick-switch collapsed" style="display:none;">
+            <button type="button" class="tier-quick-head" id="tierQuickHead" aria-expanded="false" title="点击展开/收起快速切换档位">
+              <span class="tier-quick-label">快速切换档位</span>
+              <span class="tier-quick-arrow" aria-hidden="true">▾</span>
+            </button>
             <div class="tier-quick-btns" id="tierQuickBtns"></div>
           </div>
 
@@ -432,11 +461,10 @@
           <div class="price-section-label" id="defaultPriceLabel">默认报价（原邮费）</div>
           <div id="priceCards" class="price-cards"></div>
 
-          <!-- 临时毛利系数快速设置 -->
+          <!-- 临时毛利系数快速设置（v11.0：提示与标题同行显示） -->
           <div id="customCoeffBar" class="custom-coeff-bar" style="display:none;">
-            <span class="custom-coeff-label">临时毛利系数：</span>
+            <span class="custom-coeff-label">临时毛利系数：<span class="custom-coeff-hint">（临时显示，不影响默认设置）</span></span>
             <input type="number" id="customCoeffInput" class="custom-coeff-input" min="1" max="10" step="0.01" placeholder="如 1.18" />
-            <span class="custom-coeff-hint">（临时显示，不影响默认设置）</span>
           </div>
           <div id="customPriceCard" class="price-cards" style="display:none;"></div>
 
@@ -448,19 +476,7 @@
           </div>
           <div id="tempCoeffResults" class="price-cards" style="display:none;"></div>
 
-          <!-- 邮费快速修改 -->
-          <div id="shippingOverrideBar" class="shipping-override-bar" style="display:none;">
-            <span class="shipping-override-label">邮费快速修改：</span>
-            <input type="number" id="shippingOverrideInput" class="shipping-override-input" min="0" step="0.01" placeholder="输入修改后的邮费" />
-            <button class="btn sm" id="shippingOverrideClear">清除</button>
-            <span class="shipping-override-hint">（修改后下方显示基于新邮费的报价）</span>
-          </div>
-          <div id="shippingOverrideLabel" class="price-section-label" style="display:none;">修改邮费后报价</div>
-          <div id="shippingOverrideCost" class="shipping-override-cost-row" style="display:none;">
-            <span class="shipping-override-cost-label">修改后成本</span>
-            <span class="shipping-override-cost-value" id="shippingOverrideCostValue">-</span>
-          </div>
-          <div id="shippingOverrideCards" class="price-cards shipping-override-cards" style="display:none;"></div>
+          <!-- v11.0：邮费快速修改并入结果区邮费行就地点击编辑（原独立输入栏已移除） -->
 
           <!-- 报价记录保存 -->
           <section class="quote-save-panel" aria-labelledby="quoteSaveTitle">
@@ -497,11 +513,25 @@
       <div class="card">
         <h2 class="card-title">报价表组查询</h2>
 
+        <!-- v11.4：查询页分页——报价表 / 吊绳价格 / 邮费价格 三个子视图，避免单页过长滚动 -->
+        <div class="table-view-tabs" id="tableViewTabs" role="tablist">
+          <button type="button" class="table-view-tab active" data-tview-tab="quote">纸张报价表</button>
+          <button type="button" class="table-view-tab" data-tview-tab="rope">吊绳价格</button>
+          <button type="button" class="table-view-tab" data-tview-tab="shipping">邮费价格</button>
+        </div>
+
+        <div id="tview-quote" class="table-view-panel active" data-tview="quote">
         <!-- 报价表组切换器 -->
         <div class="price-list-switcher">
-          <label class="switcher-label">当前报价表：</label>
+          <label class="switcher-label">纸张报价表：</label>
           <select id="priceListSelector" class="price-list-selector"></select>
-          <button class="btn danger-outline sm" id="deletePriceListBtn" title="删除当前报价表（不允许删除最后一个）">删除当前报价表</button>
+          <button class="btn danger-outline sm" id="deletePriceListBtn" title="删除纸张报价表（不允许删除最后一个）">删除纸张报价表</button>
+        </div>
+
+        <!-- v10.8.0：报价表备注——独立成行的框体，位于切换器下方；无备注时整块隐藏 -->
+        <div class="price-list-note" id="priceListNote" hidden>
+          <div class="price-list-note-title">报价表备注</div>
+          <div class="price-list-note-body" id="priceListNoteBody"></div>
         </div>
 
         <div class="table-toolbar">
@@ -555,9 +585,13 @@
           </table>
         </div>
 
-        <!-- v6.7：直接系数档位表（单独框体表格显示，位于吊牌特殊工艺价格表下方） -->
-        <div class="table-wrap" id="directCoeffWrap" style="margin-top:20px;">
-          <h3 style="font-size:14px;color:var(--brand-dark);margin-bottom:10px;">直接系数档位表</h3>
+        <!-- v11.5（T-A2）：直接系数档位表——渐进披露，默认收起 -->
+        <div class="table-wrap fold-box" id="directCoeffWrap" style="margin-top:14px;">
+          <button type="button" class="fold-head" id="directCoeffHead" aria-expanded="false">
+            <span>直接系数档位表</span>
+            <span class="fold-arrow" aria-hidden="true">▾</span>
+          </button>
+          <div class="fold-body">
           <table id="directCoeffTable">
             <thead>
               <tr>
@@ -569,11 +603,16 @@
               <!-- 动态行 -->
             </tbody>
           </table>
+          </div>
         </div>
 
-        <!-- v7.0：批量直接报价表（仅部分 Sheet 有配置，无配置时显示占位提示） -->
-        <div class="table-wrap" id="batchDirectWrap" style="margin-top:20px;">
-          <h3 style="font-size:14px;color:var(--brand-dark);margin-bottom:10px;">批量直接报价表</h3>
+        <!-- v11.5（T-A2）：批量直接报价表——渐进披露，默认收起 -->
+        <div class="table-wrap fold-box" id="batchDirectWrap" style="margin-top:14px;">
+          <button type="button" class="fold-head" id="batchDirectHead" aria-expanded="false">
+            <span>批量直接报价表</span>
+            <span class="fold-arrow" aria-hidden="true">▾</span>
+          </button>
+          <div class="fold-body">
           <table id="batchDirectTable">
             <thead>
               <tr>
@@ -585,11 +624,18 @@
               <!-- 动态行 -->
             </tbody>
           </table>
+          </div>
         </div>
 
-        <!-- v7.9：吊绳价格表（全局共享，就地编辑） -->
-        <div class="table-wrap" id="ropePriceWrap" style="margin-top:20px;">
-          <h3 style="font-size:14px;color:var(--brand-dark);margin-bottom:6px;">吊绳价格表 <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（全局共享，不随报价表切换；点击价格数字直接修改）</span></h3>
+        </div><!-- /tview-quote -->
+
+        <!-- v11.4：吊绳价格表（全局共享，就地编辑；分页显示） -->
+        <div class="table-wrap" id="ropePriceWrap" data-tview="rope" hidden style="margin-top:20px;">
+          <h3 style="font-size:14px;color:var(--brand-dark);margin-bottom:6px;">
+            <button type="button" class="btn sm" data-tview-back="quote" title="返回纸张报价表视图">← 返回纸张报价表</button>
+            吊绳价格表 <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（独立报价表，全局生效；可指定仅作用于某个纸张报价表；点击价格数字直接修改）</span>
+            <button type="button" class="btn secondary sm" id="ropeClearScopeBtn" style="margin-left:8px;" title="关闭全部条目的「指定报价表」，恢复全局生效（价格数值不变）">关闭指定</button>
+          </h3>
           <table id="ropePriceTable">
             <thead>
               <tr>
@@ -603,9 +649,13 @@
           </table>
         </div>
 
-        <!-- v7.9：邮费价格表（全局共享，就地编辑） -->
-        <div class="table-wrap" id="shippingPriceWrap" style="margin-top:20px;">
-          <h3 style="font-size:14px;color:var(--brand-dark);margin-bottom:6px;">邮费价格表 <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（全局共享，不随报价表切换；点击数字直接修改）</span></h3>
+        <!-- v7.9/v11.4：邮费价格表（全局共享，就地编辑；分页显示） -->
+        <div class="table-wrap" id="shippingPriceWrap" data-tview="shipping" hidden style="margin-top:20px;">
+          <h3 style="font-size:14px;color:var(--brand-dark);margin-bottom:6px;">
+            <button type="button" class="btn sm" data-tview-back="quote" title="返回纸张报价表视图">← 返回纸张报价表</button>
+            邮费价格表 <span style="font-size:12px;color:var(--text-secondary);font-weight:400;">（独立报价表，全局生效；可指定仅作用于某个纸张报价表；点击数字直接修改）</span>
+            <button type="button" class="btn secondary sm" id="shipClearScopeBtn" style="margin-left:8px;" title="关闭全部条目的「指定报价表」，恢复全局生效（价格数值不变）">关闭指定</button>
+          </h3>
           <table id="shippingPriceTable">
             <thead>
               <tr>
@@ -619,23 +669,23 @@
           </table>
         </div>
 
-        <div class="pagination" id="paginationBar">
+        <div class="pagination" id="paginationBar" data-tview="quote">
           <button class="btn" id="prevPaper" disabled="">上一张</button>
           <span class="page-info" id="paperPageInfo">-</span>
           <button class="btn" id="nextPaper" disabled="">下一张</button>
         </div>
 
-        <div class="notes" id="paperNotes">备注：切换纸张查看对应1号报价表。</div>
+        <div class="notes" id="paperNotes" data-tview="quote">备注：切换纸张查看对应1号报价表。</div>
       </div>
     </section>
 
     <!-- 页面3：个人主页 -->
     <section class="page" id="page-profile">
       <div class="profile-hero">
-        <div class="avatar">海</div>
+        <div class="avatar">亲</div>
         <div class="profile-meta">
-          <h3>KOKA <span class="placeholder-badge">占位 UI</span></h3>
-          <p>管理员 · 本地配置 · 下次打开保留</p>
+          <h3>KOKALabel报价系统</h3>
+          <p>报价配置 · 本机保存 · 下次打开保留</p>
         </div>
       </div>
 
@@ -647,8 +697,324 @@
         </a>
       </div>
 
+      <!-- v11.2：功能入口（移动端顶部菜单保持 3 项，数据管理/报价设置由此进入） -->
+      <div class="card">
+        <h2 class="card-title">功能入口</h2>
+        <div class="btn-group">
+          <button class="btn" id="gotoDataMgrBtn">数据管理（含报价历史）</button>
+          <button class="btn secondary" id="gotoSettingsBtn">报价设置</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">系统信息</h2>
+        <div class="profile-section" style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;">
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">当前版本</div>
+              <div class="setting-desc">KOKALabel报价系统 v13.0</div>
+            </div>
+            <div class="setting-control">
+              <span class="placeholder-badge">正式版</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">数据存储</div>
+              <div class="setting-desc">当前使用浏览器 localStorage，后续迁移至数据库</div>
+            </div>
+            <div class="setting-control">
+              <span class="placeholder-badge">本地</span>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">测试阶段提示</div>
+              <div class="setting-desc">当前为测试阶段，页面已屏蔽搜索引擎收录。后续将开放公开访问，届时移除 noindex 标签即可。</div>
+            </div>
+            <div class="setting-control">
+              <span class="placeholder-badge" style="background:var(--brand);color:#fff;">测试中</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="border: 2px solid var(--danger-border); background: var(--danger-light);">
+        <h2 class="card-title" style="color: var(--danger); border-bottom-color: var(--danger-border);">全局恢复</h2>
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label" style="color: var(--danger);">一键恢复全局默认设置</div>
+            <div class="setting-desc">清除浏览器中所有本地配置（纸张 / 工艺 / 吊绳 / 客户等级 / 公司信息 / 个人偏好），恢复到出厂默认状态。报价历史与本地快照不受影响。操作不可撤销。</div>
+          </div>
+          <div class="setting-control">
+            <button class="btn danger sm" id="resetAllSettingsBtn">一键恢复全局默认</button>
+          </div>
+        </div>
+        <!-- v12.1：新增（不覆盖上面的全局恢复）——彻底恢复出厂，含记录与缓存 -->
+        <div class="setting-row">
+          <div class="setting-info">
+            <div class="setting-label" style="color: var(--danger);">彻底恢复出厂并清除缓存</div>
+            <div class="setting-desc">在「全局恢复」基础上，<b>同时清除报价历史、本地快照与本机偏好</b>（主题色 / 表格密度 / 字体大小），并清空内存缓存（临时价 / 会话缓存）。<b>登录状态保留</b>。操作不可撤销。</div>
+          </div>
+          <div class="setting-control">
+            <button class="btn danger sm" id="resetEverythingBtn">彻底恢复出厂并清除缓存</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-data">
+      <!-- v11.1：数据管理独立菜单页（仅 web 端；本地版保留原个人主页结构） -->
+      <div class="card">
+        <h2 class="card-title">数据管理</h2>
+        <p class="card-desc">报价历史、价格配置导入导出、在线修改与快照统计；历史与快照保存在本机浏览器。</p>
+        <button class="btn sm" id="uploadDefaultBtn" style="display:none;float:right;background:#059669;color:#fff;" title="把当前纸张/工艺/吊绳/邮费/客户等级配置保存到云端，供全用户共享（仅管理员）">保存到云端</button>
+        <div class="tabs">
+          <button class="tab active" data-tab="history">报价历史</button>
+          <button class="tab" data-tab="config">价格配置</button>
+          <button class="tab" data-tab="online">在线修改</button>
+          <button class="tab" data-tab="rules">匹配规则</button>
+          <button class="tab" data-tab="cloud">云同步 <span class="placeholder-badge">占位</span></button>
+        </div>
+
+        <div class="tab-panel" id="panel-config">
+          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div>
+              <h3 style="font-size:14px;color:var(--brand-dark);margin:0;">价格配置导入 / 导出</h3>
+              <p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0;">支持多报价表管理：导入 Excel = 新增报价表，切换报价表查看不同价格。吊绳/邮费全局共享，不随报价表切换。</p>
+            </div>
+            <button class="btn danger-outline sm" id="resetToDefaultsBtn" title="清空纸张/工艺/吊绳/客户等级的所有本地修改，恢复出厂配置（不影响报价历史与本地快照）">重置为默认配置</button>
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">纸张报价表 Excel（导入 = 新增报价表）</h4>
+            <div class="btn-group">
+              <button class="btn" id="exportExcelBtn">导出纸张报价表 Excel</button>
+              <button class="btn secondary" id="importExcelBtn">导入纸张报价表 Excel</button>
+              <button class="btn secondary" id="downloadTemplateBtn">下载 Excel 模板</button>
+              <input type="file" id="importExcelFile" accept=".xlsx,.xls" style="display:none">
+            </div>
+            <div id="excelImportStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">吊绳报价</h4>
+            <div class="btn-group">
+              <button class="btn" id="exportRopeExcelBtn">导出吊绳 Excel</button>
+              <button class="btn secondary" id="importRopeExcelBtn">导入吊绳 Excel</button>
+              <button class="btn secondary" id="downloadRopeTemplateBtn">下载吊绳模板</button>
+              <input type="file" id="importRopeExcelFile" accept=".xlsx,.xls" style="display:none">
+            </div>
+            <div id="ropeExcelImportStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
+          </div>
+
+          <div style="margin-bottom:18px;">
+            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">邮费报价</h4>
+            <div class="btn-group">
+              <button class="btn" id="exportShippingExcelBtn">导出邮费 Excel</button>
+              <button class="btn secondary" id="importShippingExcelBtn">导入邮费 Excel</button>
+              <button class="btn secondary" id="downloadShippingTemplateBtn">下载邮费模板</button>
+              <input type="file" id="importShippingExcelFile" accept=".xlsx,.xls" style="display:none">
+            </div>
+            <div id="shippingExcelImportStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn" id="exportDataBtn">导出完整配置 JSON</button>
+            <button class="btn secondary" id="importDataBtn">导入配置 JSON</button>
+            <input type="file" id="importFile" accept=".json" style="display:none">
+          </div>
+
+          <div style="margin-top:18px;">
+            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">本地备份（推荐）</h4>
+            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">一键把当前所有配置（纸张/吊绳/工艺/客户等级/历史/快照）打包保存到本机文件；换浏览器或换电脑时用「恢复本地备份」一键还原。</p>
+            <div class="btn-group">
+              <button class="btn" id="exportLocalBackupBtn">保存到本地文件</button>
+              <button class="btn secondary" id="importLocalBackupBtn">从本地文件恢复</button>
+              <input type="file" id="importLocalBackupFile" accept=".json" style="display:none">
+            </div>
+            <div id="localBackupStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
+          </div>
+        </div>
+
+        <div class="tab-panel active" id="panel-history">
+          <div class="history-panel-heading">
+            <div>
+              <h3>历史报价记录</h3>
+              <p>保存的是当时报价快照；重新载入参数后将按当前价格重新计算。</p>
+            </div>
+            <button class="btn danger-outline sm" id="clearHistoryBtn">清空全部记录</button>
+          </div>
+          <div class="history-table-wrap">
+            <table class="data-table history-table" id="historyTable" style="display: none;">
+              <thead>
+                <tr><th>客户 / 编号</th><th>保存时间</th><th>模式 / 报价表</th><th>档位</th><th>成本</th><th>建议价</th><th>操作</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="empty-state" id="historyEmpty" style="display: block;">暂无报价记录。</div>
+        </div>
+
+        <div class="tab-panel" id="panel-online">
+          <!-- v10.7.1 在线修改：非管理员锁定提示（http 部署时显示） -->
+          <div class="online-lock-notice" id="onlineLockNotice" hidden>
+            <div class="feature-icon">🔒</div>
+            <div>
+              <div class="online-lock-title">在线修改仅管理员可用</div>
+              <div class="online-lock-desc">报价表组、报价表与模板数据修改会影响全员报价结果，请联系管理员操作。</div>
+            </div>
+          </div>
+
+          <div id="onlineManagerRoot">
+            <!-- 区块一：报价表组与报价表管理 -->
+            <div class="history-panel-heading">
+              <div>
+                <h3>报价表组与纸张报价表管理</h3>
+                <p>新增 / 重命名报价表组与纸张报价表，调整归属；删除纸张报价表会同时删除其纸张与工艺数据。</p>
+                <p style="color:var(--text-secondary);">说明：吊绳 / 邮费为<b>独立报价表（全局生效）</b>，其「指定报价表」（指定仅作用于某个纸张报价表）请在「报价表组查询 → 吊绳价格 / 邮费价格」视图中查看与管理。</p>
+              </div>
+              <button class="btn sm" id="onlineAddGroupBtn">新增报价表组</button>
+            </div>
+            <div id="onlineGroupsWrap"></div>
+
+            <!-- 区块二：管理员按模板修改 -->
+            <div class="history-panel-heading online-section-gap">
+              <div>
+                <h3>按模板修改报价数据（管理员）</h3>
+                <p>选择目标报价表 → 导出模板（含现有数据）→ 按模板修改后导入，数据将直接覆盖该报价表。</p>
+              </div>
+            </div>
+            <div class="online-tpl-row">
+              <select id="onlineTplPriceList" class="online-tpl-select" aria-label="选择目标报价表"></select>
+              <div class="btn-group online-tpl-btns">
+                <button class="btn" id="onlineExportTplBtn">导出模板（含现有数据）</button>
+                <button class="btn secondary" id="onlineImportTplBtn">导入修改数据</button>
+                <input type="file" id="onlineImportTplFile" accept=".xlsx,.xls" hidden>
+              </div>
+            </div>
+            <div id="onlineTplStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
+
+            <!-- 区块三（v12.7）：在线制作纸张报价表——全字段在线编辑 -->
+            <div class="history-panel-heading online-section-gap">
+              <div>
+                <h3>在线制作纸张报价表（管理员）</h3>
+                <p>选择或新建纸张后，直接在线编辑<b>全部字段</b>：纸张属性（全称/简称/折扣/归属报价表）、直接系数、批量直接报价、规格价格矩阵、工艺价格矩阵；行列可增删，单元格点击即改。
+                   修改<b>仅存本地</b>——如需全员共享，请点右上角「<b>保存到云端</b>」。</p>
+              </div>
+            </div>
+            <div class="online-paper-editor">
+              <div class="online-paper-toolbar">
+                <select id="onlinePaperSelect" aria-label="选择纸张"></select>
+                <div class="btn-group">
+                  <button class="btn sm" id="onlineNewPaperBtn">＋ 新建纸张</button>
+                  <button class="btn sm secondary" id="onlineAddSpecBtn">＋ 规格行</button>
+                  <button class="btn sm secondary" id="onlineAddCraftBtn">＋ 工艺行</button>
+                  <button class="btn sm" id="onlineSavePaperBtn">保存到本地</button>
+                </div>
+              </div>
+              <div id="onlinePaperFields"></div>
+              <div class="table-wrap" id="onlineSpecWrap" style="margin-top:12px;"></div>
+              <div class="table-wrap" id="onlineCraftWrap" style="margin-top:12px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="panel-cloud">
+          <h3 style="font-size:14px;color:var(--brand-dark);margin:6px 0 10px;">云同步中心</h3>
+          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">后续可接入 Cloudflare D1 / KV 或自建后端，实现账号登录与跨设备数据同步。</p>
+          <div class="feature-grid">
+            <div class="feature-card" data-toast="账号登录功能占位">
+              <div class="feature-icon">👤</div>
+              <div class="feature-title">账号登录</div>
+              <div class="feature-desc">手机号 / 邮箱 + 验证码</div>
+            </div>
+            <div class="feature-card" data-toast="自动同步功能占位">
+              <div class="feature-icon">☁</div>
+              <div class="feature-title">自动同步</div>
+              <div class="feature-desc">修改后实时上传云端</div>
+            </div>
+            <div class="feature-card" data-toast="团队共享功能占位">
+              <div class="feature-icon">👥</div>
+              <div class="feature-title">团队共享</div>
+              <div class="feature-desc">多账号共享统一价格表</div>
+            </div>
+            <div class="feature-card" data-toast="版本回滚功能占位">
+              <div class="feature-icon">↺</div>
+              <div class="feature-title">版本回滚</div>
+              <div class="feature-desc">恢复到任意历史版本</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- v12.9：匹配规则（数据管理 → 匹配规则） -->
+        <div class="tab-panel" id="panel-rules">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
+            <div style="max-width:760px;">
+              <h3 style="font-size:14px;color:var(--brand-dark);margin:0;">规格匹配规则</h3>
+              <p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0;line-height:1.7;">
+                规则只决定「用哪个规格代码」，<b>价格仍取纸张报价表中该代码的价格</b>；启用规则匹配时，「最大含出血面积 (mm²)」列不参与匹配。<br>
+                匹配方式：面积 ≤ 某条规则的「面积上限」即命中该代码；未命中（超出规则上限，或该纸张没有该代码）则自动回退到表格匹配。
+              </p>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <label style="font-size:12px;color:var(--text-secondary);white-space:nowrap;">规则集</label>
+              <select id="ruleSetSelect">
+                <option value="global">全局规则（除织唛外）</option>
+                <option value="maitou">织唛专用规则</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="overflow:auto;max-height:46vh;">
+            <table class="data-table">
+              <thead><tr><th style="width:36%;">规格代码</th><th style="width:36%;">含出血面积上限 (mm²)</th><th style="width:28%;">操作</th></tr></thead>
+              <tbody id="rulesTbody"></tbody>
+            </table>
+          </div>
+
+          <div class="btn-group" style="margin-top:12px;">
+            <button class="btn sm" id="rulesAddBtn">＋ 新增规则</button>
+            <button class="btn secondary sm" id="rulesResetBtn">恢复默认规则</button>
+          </div>
+          <div id="rulesStatus" style="margin-top:10px;font-size:12px;color:var(--text-secondary);line-height:1.7;"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 class="card-title">快照与统计报表</h2>
+        <div class="stats-snapshot-layout">
+          <div class="snapshot-box">
+            <h4 style="font-size:13px;color:var(--brand-dark);margin:0 0 8px;">本地快照列表</h4>
+            <table class="data-table" id="snapshotTable" style="display: none;">
+              <thead>
+                <tr><th>快照名</th><th>时间</th><th>操作</th></tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="empty-state" id="snapshotEmpty" style="display: block;">暂无快照，点击下方按钮创建。</div>
+            <div class="btn-group">
+              <button class="btn secondary sm" id="createSnapshotBtn">+ 创建当前快照</button>
+              <button class="btn danger sm" id="clearSnapshotBtn">清空快照</button>
+              <button class="btn sm" id="exportSnapshotsBtn">导出快照</button>
+            </div>
+          </div>
+          <div class="stats-box">
+            <div class="stats-box-header">
+              <h4 style="font-size:13px;color:var(--brand-dark);margin:0;">统计报表</h4>
+              <button class="btn sm" id="exportStatsBtn">导出统计报表</button>
+            </div>
+            <div id="statsContent" class="stats-content"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="page" id="page-settings">
+      <!-- v11.1：报价设置独立菜单页（仅 web 端） -->
       <div class="card">
         <h2 class="card-title">报价设置</h2>
+        <p class="card-desc">客户毛利系数、金额显示与默认项；设置保存在本机浏览器。</p>
 
         <div class="profile-section">
           <h3 class="section-title">客户建议价格 · 毛利系数</h3>
@@ -693,15 +1059,15 @@
           </div>
         </div>
 
-        <div class="profile-section">
-          <h3 class="section-title">公司信息与报价单</h3>
+        <div class="profile-section open" data-foldable>
+          <h3 class="section-title foldable-title">公司信息与报价单 <span class="fold-arrow" aria-hidden="true">▾</span></h3>
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">公司名称</div>
               <div class="setting-desc">显示在报价单顶部</div>
             </div>
             <div class="setting-control">
-              <input type="text" id="companyName" placeholder="KOKALabel">
+              <input type="text" id="companyName" placeholder="KOKA">
             </div>
           </div>
           <div class="setting-row">
@@ -715,8 +1081,8 @@
           </div>
         </div>
 
-        <div class="profile-section">
-          <h3 class="section-title">默认选项</h3>
+        <div class="profile-section" data-foldable>
+          <h3 class="section-title foldable-title">默认选项 <span class="fold-arrow" aria-hidden="true">▾</span></h3>
           <div class="setting-row">
             <div class="setting-info">
               <div class="setting-label">默认批量档位</div>
@@ -733,6 +1099,18 @@
             </div>
             <div class="setting-control">
               <select id="defaultSizeType"><option value="single">单张尺寸</option><option value="spread">展开尺寸</option></select>
+            </div>
+          </div>
+          <div class="setting-row">
+            <div class="setting-info">
+              <div class="setting-label">规格匹配方式</div>
+              <div class="setting-desc">表格匹配：按纸张报价表的「最大含出血面积」列选代码（默认）；规则匹配：按「数据管理 → 匹配规则」选代码（价格仍取表格）</div>
+            </div>
+            <div class="setting-control">
+              <select id="specMatchMode">
+                <option value="table">表格匹配（默认）</option>
+                <option value="rule">规则匹配</option>
+              </select>
             </div>
           </div>
           <div class="setting-row">
@@ -790,7 +1168,8 @@
 
       <div class="card">
         <h2 class="card-title">计算规则说明</h2>
-        <details class="rule-block" open>
+        <!-- v11.9（S-A3）：默认折叠（原 open），宽屏右栏让位表单、保证设置页一屏 -->
+        <details class="rule-block">
           <summary>直接系数</summary>
           <div class="rule-content">
             <p>直接系数只读取报价表（Excel）每个 Sheet 的「直接系数档位 / 最高倍数 / 最低倍数」三行数据，不再支持在个人主页全局设置。修改直接系数请直接编辑报价表后重新导入。</p>
@@ -809,266 +1188,7 @@
           </div>
         </details>
       </div>
-
-      <div class="card">
-        <h2 class="card-title">数据管理 <button class="btn sm" id="uploadDefaultBtn" style="display:none;float:right;background:#059669;color:#fff;" title="把当前纸张/工艺/吊绳/邮费/客户等级配置上传为全用户共享的默认数据（仅管理员）">上传为默认数据</button></h2>
-        <div class="tabs">
-          <button class="tab active" data-tab="config">价格配置</button>
-          <button class="tab" data-tab="history">报价历史</button>
-          <button class="tab" data-tab="online">在线修改</button>
-          <button class="tab" data-tab="cloud">云同步 <span class="placeholder-badge">占位</span></button>
-        </div>
-
-        <div class="tab-panel active" id="panel-config">
-          <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:14px;">
-            <div>
-              <h3 style="font-size:14px;color:var(--brand-dark);margin:0;">价格配置导入 / 导出</h3>
-              <p style="font-size:12px;color:var(--text-secondary);margin:4px 0 0;">支持多报价表管理：导入 Excel = 新增报价表，切换报价表查看不同价格。吊绳/邮费全局共享，不随报价表切换。</p>
-            </div>
-            <button class="btn danger-outline sm" id="resetToDefaultsBtn" title="清空纸张/工艺/吊绳/客户等级的所有本地修改，恢复出厂配置（不影响报价历史与本地快照）">重置为默认配置</button>
-          </div>
-
-          <div style="margin-bottom:18px;">
-            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">报价表 Excel（导入 = 新增报价表）</h4>
-            <div class="btn-group">
-              <button class="btn" id="exportExcelBtn">导出当前报价表 Excel</button>
-              <button class="btn secondary" id="importExcelBtn">导入报价表 Excel</button>
-              <button class="btn secondary" id="downloadTemplateBtn">下载 Excel 模板</button>
-              <input type="file" id="importExcelFile" accept=".xlsx,.xls" style="display:none">
-            </div>
-            <div id="excelImportStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
-          </div>
-
-          <div style="margin-bottom:18px;">
-            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">吊绳报价</h4>
-            <div class="btn-group">
-              <button class="btn" id="exportRopeExcelBtn">导出吊绳 Excel</button>
-              <button class="btn secondary" id="importRopeExcelBtn">导入吊绳 Excel</button>
-              <button class="btn secondary" id="downloadRopeTemplateBtn">下载吊绳模板</button>
-              <input type="file" id="importRopeExcelFile" accept=".xlsx,.xls" style="display:none">
-            </div>
-            <div id="ropeExcelImportStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
-          </div>
-
-          <div style="margin-bottom:18px;">
-            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">邮费报价</h4>
-            <div class="btn-group">
-              <button class="btn" id="exportShippingExcelBtn">导出邮费 Excel</button>
-              <button class="btn secondary" id="importShippingExcelBtn">导入邮费 Excel</button>
-              <button class="btn secondary" id="downloadShippingTemplateBtn">下载邮费模板</button>
-              <input type="file" id="importShippingExcelFile" accept=".xlsx,.xls" style="display:none">
-            </div>
-            <div id="shippingExcelImportStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
-          </div>
-
-          <div class="btn-group">
-            <button class="btn" id="exportDataBtn">导出完整配置 JSON</button>
-            <button class="btn secondary" id="importDataBtn">导入配置 JSON</button>
-            <input type="file" id="importFile" accept=".json" style="display:none">
-          </div>
-
-          <div style="margin-top:18px;">
-            <h4 style="font-size:13px;color:var(--brand-dark);margin-bottom:8px;">本地备份（推荐）</h4>
-            <p style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">一键把当前所有配置（纸张/吊绳/工艺/客户等级/历史/快照）打包保存到本机文件；换浏览器或换电脑时用「恢复本地备份」一键还原。</p>
-            <div class="btn-group">
-              <button class="btn" id="exportLocalBackupBtn">保存到本地文件</button>
-              <button class="btn secondary" id="importLocalBackupBtn">从本地文件恢复</button>
-              <input type="file" id="importLocalBackupFile" accept=".json" style="display:none">
-            </div>
-            <div id="localBackupStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
-          </div>
-        </div>
-
-        <div class="tab-panel" id="panel-history">
-          <div class="history-panel-heading">
-            <div>
-              <h3>历史报价记录</h3>
-              <p>保存的是当时报价快照；重新载入参数后将按当前价格重新计算。</p>
-            </div>
-            <button class="btn danger-outline sm" id="clearHistoryBtn">清空全部记录</button>
-          </div>
-          <div class="history-table-wrap">
-            <table class="data-table history-table" id="historyTable" style="display: none;">
-              <thead>
-                <tr><th>客户 / 编号</th><th>保存时间</th><th>模式 / 报价表</th><th>档位</th><th>成本</th><th>建议价</th><th>操作</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-          </div>
-          <div class="empty-state" id="historyEmpty" style="display: block;">暂无报价记录。</div>
-        </div>
-
-        <div class="tab-panel" id="panel-online">
-          <!-- v10.7.0 在线修改：非管理员锁定提示（http 部署时显示） -->
-          <div class="online-lock-notice" id="onlineLockNotice" hidden>
-            <div class="feature-icon">🔒</div>
-            <div>
-              <div class="online-lock-title">在线修改仅管理员可用</div>
-              <div class="online-lock-desc">报价表组、报价表与模板数据修改会影响全员报价结果，请联系管理员操作。</div>
-            </div>
-          </div>
-
-          <div id="onlineManagerRoot">
-            <!-- 区块一：报价表组与报价表管理 -->
-            <div class="history-panel-heading">
-              <div>
-                <h3>报价表组与报价表管理</h3>
-                <p>新增 / 重命名报价表组与报价表，调整报价表归属；删除报价表会同时删除其纸张与工艺数据。</p>
-              </div>
-              <button class="btn sm" id="onlineAddGroupBtn">新增报价表组</button>
-            </div>
-            <div id="onlineGroupsWrap"></div>
-
-            <!-- 区块二：管理员按模板修改 -->
-            <div class="history-panel-heading online-section-gap">
-              <div>
-                <h3>按模板修改报价数据（管理员）</h3>
-                <p>选择目标报价表 → 导出模板（含现有数据）→ 按模板修改后导入，数据将直接覆盖该报价表。</p>
-              </div>
-            </div>
-            <div class="online-tpl-row">
-              <select id="onlineTplPriceList" class="online-tpl-select" aria-label="选择目标报价表"></select>
-              <div class="btn-group online-tpl-btns">
-                <button class="btn" id="onlineExportTplBtn">导出模板（含现有数据）</button>
-                <button class="btn secondary" id="onlineImportTplBtn">导入修改数据</button>
-                <input type="file" id="onlineImportTplFile" accept=".xlsx,.xls" hidden>
-              </div>
-            </div>
-            <div id="onlineTplStatus" style="margin-top:10px;font-size:13px;color:var(--text-secondary);"></div>
-          </div>
-        </div>
-
-        <div class="tab-panel" id="panel-cloud">
-          <h3 style="font-size:14px;color:var(--brand-dark);margin:6px 0 10px;">云同步中心</h3>
-          <p style="font-size:13px;color:var(--text-secondary);margin-bottom:14px;">后续可接入 Cloudflare D1 / KV 或自建后端，实现账号登录与跨设备数据同步。</p>
-          <div class="feature-grid">
-            <div class="feature-card" data-toast="账号登录功能占位">
-              <div class="feature-icon">👤</div>
-              <div class="feature-title">账号登录</div>
-              <div class="feature-desc">手机号 / 邮箱 + 验证码</div>
-            </div>
-            <div class="feature-card" data-toast="自动同步功能占位">
-              <div class="feature-icon">☁</div>
-              <div class="feature-title">自动同步</div>
-              <div class="feature-desc">修改后实时上传云端</div>
-            </div>
-            <div class="feature-card" data-toast="团队共享功能占位">
-              <div class="feature-icon">👥</div>
-              <div class="feature-title">团队共享</div>
-              <div class="feature-desc">多账号共享统一价格表</div>
-            </div>
-            <div class="feature-card" data-toast="版本回滚功能占位">
-              <div class="feature-icon">↺</div>
-              <div class="feature-title">版本回滚</div>
-              <div class="feature-desc">恢复到任意历史版本</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title">快照与统计报表</h2>
-        <div class="stats-snapshot-layout">
-          <div class="snapshot-box">
-            <h4 style="font-size:13px;color:var(--brand-dark);margin:0 0 8px;">本地快照列表</h4>
-            <table class="data-table" id="snapshotTable" style="display: none;">
-              <thead>
-                <tr><th>快照名</th><th>时间</th><th>操作</th></tr>
-              </thead>
-              <tbody></tbody>
-            </table>
-            <div class="empty-state" id="snapshotEmpty" style="display: block;">暂无快照，点击下方按钮创建。</div>
-            <div class="btn-group">
-              <button class="btn secondary sm" id="createSnapshotBtn">+ 创建当前快照</button>
-              <button class="btn danger sm" id="clearSnapshotBtn">清空快照</button>
-              <button class="btn sm" id="exportSnapshotsBtn">导出快照</button>
-            </div>
-          </div>
-          <div class="stats-box">
-            <div class="stats-box-header">
-              <h4 style="font-size:13px;color:var(--brand-dark);margin:0;">统计报表</h4>
-              <button class="btn sm" id="exportStatsBtn">导出统计报表</button>
-            </div>
-            <div id="statsContent" class="stats-content"></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card">
-        <h2 class="card-title">更多功能</h2>
-        <div class="feature-grid">
-          <div class="feature-card" data-toast="客户管理功能占位">
-            <div class="feature-icon">🧑</div>
-            <div class="feature-title">客户管理</div>
-            <div class="feature-desc">客户档案、等级绑定、报价偏好</div>
-          </div>
-          <div class="feature-card" data-toast="订单管理功能占位">
-            <div class="feature-icon">📦</div>
-            <div class="feature-title">订单管理</div>
-            <div class="feature-desc">从报价一键生成订单、状态跟踪</div>
-          </div>
-          <div class="feature-card" data-toast="价格趋势功能占位">
-            <div class="feature-icon">📈</div>
-            <div class="feature-title">价格趋势</div>
-            <div class="feature-desc">纸张/工艺价格历史曲线</div>
-          </div>
-          <div class="feature-card" data-toast="打印报价单功能占位">
-            <div class="feature-icon">🖨</div>
-            <div class="feature-title">打印报价单</div>
-            <div class="feature-desc">生成 PDF 报价单并打印</div>
-          </div>
-          <div class="feature-card" data-toast="系统设置功能占位">
-            <div class="feature-icon">⚙</div>
-            <div class="feature-title">系统设置</div>
-            <div class="feature-desc">主题、语言、通知、缓存清理</div>
-          </div>
-        </div>
-        <div class="profile-section" style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;">
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">当前版本</div>
-              <div class="setting-desc">KOKALabel报价系统 v10.9.0</div>
-            </div>
-            <div class="setting-control">
-              <span class="placeholder-badge">正式版</span>
-            </div>
-          </div>
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">数据存储</div>
-              <div class="setting-desc">当前使用浏览器 localStorage，后续迁移至数据库</div>
-            </div>
-            <div class="setting-control">
-              <span class="placeholder-badge">本地</span>
-            </div>
-          </div>
-          <div class="setting-row">
-            <div class="setting-info">
-              <div class="setting-label">测试阶段提示</div>
-              <div class="setting-desc">当前为测试阶段，页面已屏蔽搜索引擎收录。后续将开放公开访问，届时移除 noindex 标签即可。</div>
-            </div>
-            <div class="setting-control">
-              <span class="placeholder-badge" style="background:var(--brand);color:#fff;">测试中</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="card" style="border: 2px solid var(--danger-border); background: var(--danger-light);">
-        <h2 class="card-title" style="color: var(--danger); border-bottom-color: var(--danger-border);">全局恢复</h2>
-        <div class="setting-row">
-          <div class="setting-info">
-            <div class="setting-label" style="color: var(--danger);">一键恢复全局默认设置</div>
-            <div class="setting-desc">清除浏览器中所有本地配置（纸张 / 工艺 / 吊绳 / 客户等级 / 公司信息 / 个人偏好），恢复到出厂默认状态。报价历史与本地快照不受影响。操作不可撤销。</div>
-          </div>
-          <div class="setting-control">
-            <button class="btn danger sm" id="resetAllSettingsBtn">一键恢复全局默认</button>
-          </div>
-        </div>
-      </div>
     </section>
-
-    <!-- 页面4：数据管理 + 页面5：更多 已合并到 个人主页（page-profile）中 -->
   </main>
   </div>
 
@@ -1089,6 +1209,34 @@
       </footer>
     </div>
   </dialog>
+  <!-- v11.1：报价历史列表浮窗（计算器「查看报价记录」入口；与数据管理-报价历史共用渲染） -->
+  <dialog class="history-dialog" id="historyListDialog" aria-labelledby="historyListTitle">
+    <div class="history-dialog-shell">
+      <header class="history-dialog-header">
+        <div>
+          <span class="history-dialog-kicker">保存的是当时报价快照；载入参数后将按当前价格重新计算</span>
+          <h2 id="historyListTitle">报价历史</h2>
+        </div>
+        <button type="button" class="history-dialog-close" data-close-dialog="historyListDialog" aria-label="关闭报价历史">×</button>
+      </header>
+      <div class="history-dialog-content">
+        <div class="history-table-wrap">
+          <table class="data-table history-table" id="dialogHistoryTable" style="display: none;">
+            <thead>
+              <tr><th>客户 / 编号</th><th>保存时间</th><th>模式 / 报价表</th><th>档位</th><th>成本</th><th>建议价</th><th>操作</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="empty-state" id="dialogHistoryEmpty" style="display: block;">暂无报价记录。</div>
+      </div>
+      <footer class="history-dialog-footer">
+        <button type="button" class="btn danger-outline" id="dialogClearHistoryBtn">清空全部记录</button>
+        <button type="button" class="btn secondary" data-close-dialog="historyListDialog">关闭</button>
+      </footer>
+    </div>
+  </dialog>
+
 
   <!-- v8.0：邮费重量输入对话框 -->
   <dialog class="shipping-dialog" id="shippingWeightDialog" aria-label="输入吊牌重量">
@@ -1136,7 +1284,7 @@
   <div class="toast" id="toast"></div>
 
   <!-- v7.9: SheetJS 本地化（离线双击打开亦可导出/导入 Excel），先于业务脚本加载，XLSX 全局可用 -->
-  <script src="js/vendor/xlsx.full.min.js?v=10.8.0"></script>
-  <script src="js/data.js?v=10.8.0"></script>
-  <script src="js/app.js?v=10.8.0"></script>
+  <script src="js/vendor/xlsx.full.min.js?v=13.0"></script>
+  <script src="js/data.js?v=13.0"></script>
+  <script src="js/app.js?v=13.0"></script>
 </body></html>

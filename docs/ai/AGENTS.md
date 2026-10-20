@@ -9,7 +9,8 @@ KOKALabel 报价系统：**吊牌 / 标签 / 不干胶印刷报价计算器**，
 - 核心数据流：报价表（Excel 多 Sheet）→ 纸张 Paper（规格矩阵）→ `calculate()` → 成本 / 报价。
 - 计算逻辑全在 `js/app.js`；价格数据全在 `js/data.js`。一个报价表 = 一个 Excel 文件，每张纸 = 一个 Sheet。
 - 数据存浏览器 `localStorage`；线上部署（Cloudflare Pages）额外启用账号登录体系（Pages Functions + KV，角色：管理员 / 业务员 / 访客，可上传全用户共享默认数据）。
-- 线上：https://tag-pricing-calculator-v5.pages.dev（v10.9.0）。本地 `file://` 双击打开可离线使用（不启用登录）。
+- 线上：https://tag-pricing-calculator-v5.pages.dev（v13.0）。本地 `file://` 双击打开可离线使用（不启用登录）。
+- **v13.0 回搬说明**：功能基底 = 同事仓库 `zly62612364469/kokalabel-quote` 的 **v12.9**（回搬 v11.0→v12.9 全量功能），并清洗该企业定制版的品牌/图标、回归本仓库 KOKA 身份与 **9.8 三级账号体系**。详见 `docs/回搬记录-v13.0.md` 与 `docs/upstream/`。
 
 ## 本目录文档地图（先浏览这份）
 
@@ -26,7 +27,7 @@ KOKALabel 报价系统：**吊牌 / 标签 / 不干胶印刷报价计算器**，
 
 ## 分支真相（先确认，最容易踩坑）
 
-- `v8` = 当前线上版本（v10.9.0），**一切改动在这里**。
+- `v8` = 当前线上版本（v13.0），**一切改动在这里**。
 - `main` = 已与 `v8` 同步。
 - GitHub 仓库：`KOKACODA/tag-pricing-calculator-V10`（旧地址 `tag-pricing-calculator-v5` 自动重定向）。
 - **Git 自动部署已断**（仓库改名导致 Cloudflare Pages Git 集成失效）：发版需 `wrangler pages deploy` 直传，需 `CLOUDFLARE_API_TOKEN`，详见 `docs/部署日志.md` 最新条目。
@@ -37,18 +38,19 @@ KOKALabel 报价系统：**吊牌 / 标签 / 不干胶印刷报价计算器**，
 
 | 路径 | 规模 | 何时读 / 怎么读 |
 |---|---|---|
-| `js/data.js` | ~9600 行 | **90% 是静态价格数据，永不整读**。只读顶部 `DEFAULT_*` 配置区；改价用 grep 定位纸张 id 或简称 |
-| `js/app.js` | ~5200 行 | 按函数读（见 `component-api.md`），不要整读 |
-| `index.html` | ~1150 行 | 改页面结构 / 加对话框时读 |
+| `js/data.js` | ~11300 行 | **90% 是静态价格数据，永不整读**。只读顶部 `DEFAULT_*` 配置区；改价用 grep 定位纸张 id 或简称 |
+| `js/app.js` | ~7100 行 | 按函数读（见 `component-api.md`），不要整读 |
+| `index.html` | ~1290 行 | 改页面结构 / 加对话框时读 |
 | `login.html` / `js/login.js` | 小 | 登录页（在线部署时启用） |
 | `js/auth.js` | ~230 行 | 前端账号门控 / 个人主页账号面板 |
 | `functions/` | 8 文件 | 后端账号 / 会话 / 默认数据 API；改鉴权读 `_lib.js` 与 `api/` |
-| `css/style.css` | ~3300 行 | 改样式才读；色彩 token 见 `DESIGN.md` |
+| `css/style.css` | ~4500 行 | 改样式才读；色彩 token 见 `DESIGN.md` |
 | `assets/` | 3 图标 | KOKA 品牌图标，无特殊情况不动 |
 | `js/vendor/xlsx.full.min.js` | 内置库 | **永不读**，SheetJS 已本地化 |
 | `tests/*.test.mjs` | 10 文件 | 见 `development.md` 回归清单 |
 | `docs/ai/*` | 8 文件 | 本文档集（协调协作 / 进度） |
-| `docs/`（中文历史） | 多个 | 项目总结 / 部署日志 / 问题日志等，深挖历史时读 |
+| `docs/`（中文历史） | 多个 | 项目总结 / 部署日志 / 问题日志 / 回搬记录等，深挖历史时读 |
+| `docs/upstream/` | 同事 v12.9 文档 | 同事仓库 v12.9 全套文档（清洗后下沉），追溯 v11/v12 功能来源时读 |
 
 ## 常见改动怎么做（省 token 的关键）
 
@@ -81,4 +83,6 @@ node --test tests/*.test.mjs        # 单元测试
 - `docs/main-branch-summary.md` — main 分支（v7.10 旧谱系）历史档案。
 - `docs/问题日志.md`、`docs/归档说明-v8.md` — 问题追踪 / 迁移来历。
 - `docs/功能差别标记-9.8与10.6.md` — 9.8 独有功能待加回清单（F1~F11）唯一标记入口。
+- `docs/回搬记录-v13.0.md` — v13.0 回搬（同事 v11.0→v12.9）决策与执行记录。
+- `docs/upstream/` — 同事 v12.9 全套文档（ARCHITECTURE / CORE-LOGIC / handover / plans / 完整变更日志）。
 - `CHANGELOG.md` — 查历史；近期改动用 `git log --oneline -10` 快速扫。

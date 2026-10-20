@@ -68,9 +68,9 @@ function validData() {
 const sec = loadSecurityHelpers();
 
 test("escapeHtml 转义全部五个 HTML 特殊字符", () => {
-  // v10.6 差异：null/undefined 经 String() 转成 "null"/"undefined"（9.8 返回空串，见功能差别标记文档）
-  assert.equal(sec.escapeHtml(null), "null");
-  assert.equal(sec.escapeHtml(undefined), "undefined");
+  // v13.0（沿用 v12.9）：escapeHtml 将 null/undefined 归一为空串后再转义（与 KOKA.esc 一致）
+  assert.equal(sec.escapeHtml(null), "");
+  assert.equal(sec.escapeHtml(undefined), "");
   assert.equal(sec.escapeHtml('<script>alert("x")</script>'),
     "&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;");
   assert.equal(sec.escapeHtml("a & b"), "a &amp; b");

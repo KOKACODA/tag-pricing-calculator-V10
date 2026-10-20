@@ -1,5 +1,16 @@
 # KOKALabel 报价系统 变更日志
 
+## v13.0（2026-09-28，回搬同事 v11.0→v12.9 全量功能 + 企业定制清洗 + 账号回归 9.8 三级）
+
+> 本版与仓库根 `CHANGELOG.md` 的 v13.0 条目同步。完整明细见 `docs/upstream/CHANGELOG-同事v10.3至v12.9.md` 与 `docs/回搬记录-v13.0.md`。
+
+- **功能基底**：同事仓库 `zly62612364469/kokalabel-quote` 的 `v12.9`（tag = HEAD）。
+- **回搬范围**：v11.0 → v12.9 全部功能（详见根 `CHANGELOG.md` v13.0 条目清单）。
+- **企业定制清洗**：`亲成`/`Qincheng` → `KOKA`/`KOKALabel`（19 文件 0 残留）；移除企业 logo `assets-logo-qincheng.svg` 与企业 `favicon.svg`，改用本仓库 KOKA 图标；`companyName` 改回 `KOKA`。
+- **账号/后端回归 9.8 三级**：`js/auth.js`（admin/sales/guest + 访客门控适配 5 页布局）、`functions/`（`/api/default` 契约）、`login.html`+`js/login.js`、`app.js` 云上传契约；KV `AUTH` 与 CF 项目 `tag-pricing-calculator-v5` 不变。
+- **版本号**：全站 v12.9 → v13.0。
+- **验证**：`node --check` 全通过；`node --test` 56 项 → 51 通过 / 5 跳过 / 0 失败。
+
 ## v10.7.0（2026-09-13，三块 9.8 功能加回定版）
 
 ### 功能加回（按用户拍板 A+B+C，对齐 v9.8 体系）

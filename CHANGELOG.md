@@ -1,5 +1,62 @@
 # KOKALabel 报价系统 变更日志
 
+## v13.0（2026-09-28，回搬同事 v11.0→v12.9 全量功能 + 企业定制清洗 + 账号回归 9.8 三级）
+
+### 背景
+本版以同事仓库 `zly62612364469/kokalabel-quote` 的 **v12.9**（2026-10-19，tag `v12.9` = HEAD）为
+功能基底，一次性回搬 **v11.0 → v12.9** 全部功能，并清洗该企业定制版的品牌与账号差异，回归本仓库 KOKA 身份。
+本仓库保持"研究用"，功能取 v12.9，身份/账号/后端/部署归属取本仓库 9.8。
+
+### 回搬功能清单（v11.0 → v12.9，细节见 `docs/upstream/CHANGELOG-同事v10.3至v12.9.md`）
+- v11.0 邮费就地修改 + 重置按钮 + 版本号规则改革
+- v11.1 页面拆分 + 报价历史浮窗化 + 保存改动提示
+- v11.2 菜单显示修复 + 设备适配 + 浮窗居中 + 快速切档折叠
+- v11.3 阶段审查 + 临时价缓存修复 + 文档同步
+- v11.4 唛头报价表合并（织边带 + 电脑机 → 单张「唛头报价表」）+ 查询页分页 + 个性化主题色
+- v11.5 页面适配补全 + 查询分页返回 + 模板往返修复 + 计价 Map 优化
+- v11.6 分页导航修复 + 四页面 UI 统一
+- v11.7 四页一屏化布局：双栏网格 + 历史滚动 + 表格紧凑
+- v11.8 UI 优化方案全量落地：antd 风格 token 化
+- v11.9 布局根因修复：`.pages` 撑满 + 全页一屏适配
+- v12.0 数据管理页比例优化（历史框体固定 8 行 + 左栏加宽）
+- v12.1 彻底恢复出厂 + 按钮溢出防护
+- v12.2 设置页 label 竖排修复 + 纸张材质选择模式默认修正
+- v12.3 折扣就地编辑 + 折扣价提示 + 批量直接报价可关闭
+- v12.4 工艺费就地编辑 + 折扣入口修复 + 重置整合 + 批量直接默认关闭
+- v12.5 报价表更名 + 吊绳/邮费「指定报价表」+ 退出登录 + 在线修改同步
+- v12.6 保存基于当前状态（含就地修改）+ 吊牌成本合计口径与换行 + 手动邮费高亮 + 统计区显示修复
+- v12.7「指定报价表」改占位 + 分页修复 + 按钮统一「保存到云端」+ 在线模板（在线制作纸张报价表）
+- v12.8 档位缺价/手动邮费红字高亮 + 账号管理卡整行铺满
+- v12.9 规格匹配双模式（表格匹配 默认 / 规则匹配）+ 匹配规则编辑器（数据管理 → 匹配规则）
+
+### 企业定制清洗（全量）
+- **品牌**：`亲成`/`Qincheng` → `KOKA`/`KOKALabel`（代码注释、`index.html`/`login.html` 标题与侧栏、CSS 头、文档），共清洗 19 个文件、0 残留。
+- **图标**：移除 `assets/assets-logo-qincheng.svg` 与 `assets/favicon.svg`，统一使用本仓库 KOKA 图标（`favicon.ico`/`favicon.png`/`apple-touch-icon.png`）。
+- **默认数据**：`APP_PROFILE.companyName` 由「亲成」改为 `KOKA`。
+
+### 账号/后端回归 9.8 三级体系（不使用同事四级 superadmin 体系）
+- 前端 `js/auth.js`：本仓库 9.8 三级（`admin` 管理员 / `sales` 业务员 / `guest` 访客）+ 账号面板；新增 v13.0 适配——访客隐藏除「智能报价计算器」外的全部导航与页面（对齐 v12.9 五页布局）。
+- 后端 `functions/`：本仓库 9.8 体系（`_lib.js` + `api/default.js` + `api/admin/users*` + `api/auth/*`），端点 `/api/default`（移除同事 `/api/quote`）。
+- 登录页 `login.html` / `js/login.js`：本仓库版本。
+- `js/app.js` `initDefaultDataUpload`：云上传契约回归 9.8——端点 `/api/default`、载荷 `{ data: {...} }`、返回 `version`、写入 `localStorage.koka_default_version`。
+- 部署归属：沿用本仓库 Cloudflare 项目 `tag-pricing-calculator-v5` 与 KV 绑定 `AUTH`（`wrangler.toml` 不变）。
+
+### 保留本仓库身份文件
+`wrangler.toml`、`assets/`（KOKA 图标）、`robots.txt`、`_headers`、`docs/ai/*`、本仓库既有 `docs/*`、`tests/*`。
+
+### 版本号
+全站 v12.9 → v13.0（`index.html` 标题/版本显示/缓存参数、`app.js`/`data.js` 版本头、`css` 头、快照导出 `version` 标记）。
+
+### 验证
+- `node --check`：全部 JS 通过。
+- `node --test tests/*.test.mjs`：**56 项，51 通过 / 5 跳过（integrity 完整性签名 F8）/ 0 失败**。
+- 4 个用例按 v12.9 行为修订（唛头改报价表级 `bleed`、组名「唛头小组」、迁移终态 `11.4`、`escapeHtml(null)→""`、`roleNum()` 门控）。
+
+### 文档
+- 新增 `docs/upstream/`（同事 v12.9 全套文档清洗后下沉：ARCHITECTURE / CORE-LOGIC / DEPLOYMENT / DEVELOPMENT / ISSUES / PAGE-STRUCTURE / PROJECT-SPEC / UI-STYLE / handover/* / plans/* + 完整变更日志）。
+- 新增 `docs/回搬记录-v13.0.md`（本次回搬决策与执行记录）。
+- 同步更新 `docs/ai/*`、`docs/部署日志.md`、`README.md`、`AGENTS.md`。
+
 ## v10.9.0（2026-09-24，唛头报价默认表 + 备注独立框体 + 吊绳切换刷新修复）
 
 ### 新增：唛头报价（默认报价表，归属新「唛头报价」组）

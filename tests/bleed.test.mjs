@@ -23,7 +23,7 @@ function loadBleedHelpers() {
 
   const source = `${dataSource}\n${appSource.slice(0, renderBoundary)}\n` +
     "globalThis.__bleedApi = { " +
-    "getRopeBasePrice, calcBleedArea, matchSpec, calcAreaCoefficient " +
+    "getRopeBasePrice, calcBleedArea, matchSpec, calcAreaCoefficient, isFreeRope " +
     "};";
   vm.runInContext(source, context, { filename: "bleed.bundle.js" });
   return context.__bleedApi;
@@ -48,21 +48,28 @@ const MAI_TOU_NO_BLEED = {
   ]
 };
 
-test("加吊绳全 0 定价不被视为「未设置 1000 张基准价」", () => {
+test("不加吊绳全 0 定价：getRopeBasePrice 返回 null，但 isFreeRope 判定为合法免费（不误报缺价）", () => {
   const api = loadBleedHelpers();
-  // 不加吊绳：500/1000 均为 0，属于合法免费价，应返回 0 而非 null
-  assert.equal(api.getRopeBasePrice({ 500: 0, 1000: 0 }), 0);
-  // 缺失两者才返回 null
+  // v12.9（v10.8.0 起）：getRopeBasePrice 对 0 价返回 null（0 不视为基准价）
+  assert.equal(api.getRopeBasePrice({ 500: 0, 1000: 0 }), null);
+  // v12.9：调用点（app.js calculate）用 isFreeRope 识别「全 0 = 合法免费」并补基准价 0
+  assert.equal(api.isFreeRope({ prices: { 500: 0, 1000: 0 } }), true);
+  assert.equal(api.getRopeBasePrice({ 1000: 5, 500: 5 }), 5);
+  // 缺失两者才返回 null（且非全 0 免费）
   assert.equal(api.getRopeBasePrice({ 2000: 5, 5000: 10 }), null);
-  // 不传对象返回 null
+  assert.equal(api.isFreeRope({ prices: { 2000: 5, 5000: 10 } }), false);
+  // 不传对象返回 null / false
   assert.equal(api.getRopeBasePrice(null), null);
+  assert.equal(api.isFreeRope(null), false);
 });
 
-test("calcBleedArea 按是否出血决定是否加 3mm", () => {
+test("calcBleedArea 固定加 3mm 出血；不出血由调用点按报价表 bleed 分支控制", () => {
   const api = loadBleedHelpers();
-  assert.equal(api.calcBleedArea(30, 80, true), 33 * 83);   // 出血：四周各 3mm
-  assert.equal(api.calcBleedArea(30, 80, false), 30 * 80);  // 不出血：按原尺寸
-  assert.equal(api.calcBleedArea(30, 80), 33 * 83);         // 默认出血
+  assert.equal(api.calcBleedArea(30, 80), 33 * 83);         // 出血：四周各 3mm
+  // v12.9：calcBleedArea 只接收 (length, width)，第三参被忽略；
+  // 不出血时调用点走 `length * width`（等价于不加 3mm），并用 matchSpec(..., !bleeds) 跳过强制映射
+  assert.equal(api.calcBleedArea(30, 80, false), 33 * 83);
+  assert.equal(30 * 80, 2400);
 });
 
 test("不出血时按固定区间匹配规格（唛头）", () => {
